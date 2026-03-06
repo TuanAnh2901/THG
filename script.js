@@ -5,17 +5,23 @@ console.clear();
 
 // Tự động phát nhạc khi trang load
 // Trình duyệt yêu cầu tương tác người dùng trước khi phát audio,
-// nên lắng nghe sự kiện click/keydown đầu tiên nếu autoplay bị chặn
+// nên lắng nghe sự kiện tương tác đầu tiên để resume
 const bgMusic = document.getElementById("bgMusic");
-bgMusic.volume = 0.5;
+bgMusic.volume = 0.9;
+
+const resumeAudio = () => {
+  bgMusic.play();
+  document.removeEventListener("click", resumeAudio);
+  document.removeEventListener("keydown", resumeAudio);
+  document.removeEventListener("touchstart", resumeAudio);
+  document.removeEventListener("touchend", resumeAudio);
+};
+
 bgMusic.play().catch(() => {
-  const resumeAudio = () => {
-    bgMusic.play();
-    document.removeEventListener("click", resumeAudio);
-    document.removeEventListener("keydown", resumeAudio);
-  };
   document.addEventListener("click", resumeAudio);
   document.addEventListener("keydown", resumeAudio);
+  document.addEventListener("touchstart", resumeAudio);
+  document.addEventListener("touchend", resumeAudio);
 });
 
 let scene = new THREE.Scene();
