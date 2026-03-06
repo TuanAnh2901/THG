@@ -30,6 +30,26 @@ setTimeout(() => {
   });
 }, 2000);
 
+// Toggle nhạc thủ công
+const musicToggle = document.getElementById("musicToggle");
+const updateMusicButton = () => {
+  if (bgMusic.paused) {
+    musicToggle.textContent = "▶";
+  } else {
+    musicToggle.textContent = "⏸";
+  }
+};
+musicToggle.addEventListener("click", () => {
+  if (bgMusic.paused) {
+    bgMusic.play();
+  } else {
+    bgMusic.pause();
+  }
+  updateMusicButton();
+});
+bgMusic.addEventListener("play", updateMusicButton);
+bgMusic.addEventListener("pause", updateMusicButton);
+
 let scene = new THREE.Scene();
 scene.background = new THREE.Color(0x160016);
 let camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
