@@ -107,7 +107,7 @@ function heartPoint() {
   return new THREE.Vector3(x, y, z);
 }
 
-let pts = new Array(25000).fill().map(p => {
+let pts = new Array(100000).fill().map(p => {
   sizes.push(Math.random() * 1.5 + 0.5);
   pushShift();
   return heartPoint();
