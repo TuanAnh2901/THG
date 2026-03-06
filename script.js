@@ -15,14 +15,20 @@ const resumeAudio = () => {
   document.removeEventListener("keydown", resumeAudio);
   document.removeEventListener("touchstart", resumeAudio);
   document.removeEventListener("touchend", resumeAudio);
+  document.removeEventListener("touchmove", resumeAudio);
+  document.removeEventListener("visibilitychange", resumeAudio);
 };
 
-bgMusic.play().catch(() => {
-  document.addEventListener("click", resumeAudio);
-  document.addEventListener("keydown", resumeAudio);
-  document.addEventListener("touchstart", resumeAudio);
-  document.addEventListener("touchend", resumeAudio);
-});
+setTimeout(() => {
+  bgMusic.play().catch(() => {
+    document.addEventListener("click", resumeAudio);
+    document.addEventListener("keydown", resumeAudio);
+    document.addEventListener("touchstart", resumeAudio);
+    document.addEventListener("touchend", resumeAudio);
+    document.addEventListener("touchmove", resumeAudio);
+    document.addEventListener("visibilitychange", resumeAudio);
+  });
+}, 2000);
 
 let scene = new THREE.Scene();
 scene.background = new THREE.Color(0x160016);
@@ -158,7 +164,8 @@ var txt1 = "Chúc em có 1 ngày 8/3 vui vẻ nhé! ❤️. <Luv you!";
 var speed = 50;
 typeWriter();
 function typeWriter() {
-  if (i < txt1.length) {        
+  bgMusic.play().catch(() => {});
+  if (i < txt1.length) {
      if(txt1.charAt(i)=='<')
       document.getElementById("text1").innerHTML += '</br>'
     else if(txt1.charAt(i)=='>')
