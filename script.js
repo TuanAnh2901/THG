@@ -81,21 +81,30 @@ let pushShift = () => {
     Math.random() * 0.9 + 0.1
   );
 }
-// Hàm tạo điểm trên bề mặt trái tim 3D
-// Profile trái tim (r, y) xoay quanh trục Y → bề mặt 3D đối xứng
-// Nhìn từ mọi góc ngang đều thấy trái tim, nhìn từ trên xuống thấy hình tròn
+// Lấy mẫu theo diện tích để giảm dồn hạt ở trục giữa trái tim
+function sampleHeartT() {
+  while (true) {
+    let t = Math.random() * Math.PI * 2;
+    let radialRatio = Math.abs(Math.pow(Math.sin(t), 3));
+    let keepChance = THREE.MathUtils.lerp(0.03, 1, radialRatio);
+    if (Math.random() < keepChance) {
+      return t;
+    }
+  }
+}
+
 function heartPoint() {
-  let t = Math.random() * Math.PI * 2;
-  let s = Math.random() * Math.PI * 2;
+  let t = sampleHeartT();
   let scale = 0.62;
-  // Bán kính ngang của trái tim tại tham số t
-  let r = 16 * Math.pow(Math.sin(t), 3);
-  // Chiều cao của trái tim tại tham số t
-  let y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-  // Xoay bán kính r quanh trục Y để tạo khối 3D
-  let x = r * Math.cos(s) * scale;
-  let z = r * Math.sin(s) * scale;
-  return new THREE.Vector3(x, y * scale, z);
+  let fill = Math.sqrt(Math.random());
+  let radialNoise = 0.94 + Math.random() * 0.12;
+  let xEdge = 16 * Math.pow(Math.sin(t), 3) * radialNoise;
+  let yEdge = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+  let x = xEdge * fill * scale;
+  let y = yEdge * fill * scale * 1.25 + (Math.random() - 0.5) * 0.1;
+  let depth = 1.2 + (1 - fill) * 6.0;
+  let z = (Math.random() - 0.5) * depth;
+  return new THREE.Vector3(x, y, z);
 }
 
 let pts = new Array(25000).fill().map(p => {
@@ -143,7 +152,7 @@ let m = new THREE.PointsMaterial({
         float t = time;
         float moveT = mod(shift.x + shift.z * t, PI2);
         float moveS = mod(shift.y + shift.z * t, PI2);
-        transformed += vec3(cos(moveS) * sin(moveT), cos(moveT), sin(moveS) * sin(moveT)) * shift.a;
+        transformed += vec3(cos(moveS) * sin(moveT), cos(moveT), sin(moveS) * sin(moveT) * 0.28) * shift.a;
       `
     );
     console.log(shader.vertexShader);
@@ -174,6 +183,7 @@ renderer.setAnimationLoop(() => {
   let t = clock.getElapsedTime() * 0.5;
   gu.time.value = t * Math.PI;
   p.rotation.y = t * 0.05;
+  p.rotation.x = 0;
   renderer.render(scene, camera);
 });
 
