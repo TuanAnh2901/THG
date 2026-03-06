@@ -3,6 +3,21 @@ import {OrbitControls} from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/
 
 console.clear();
 
+// Tự động phát nhạc khi trang load
+// Trình duyệt yêu cầu tương tác người dùng trước khi phát audio,
+// nên lắng nghe sự kiện click/keydown đầu tiên nếu autoplay bị chặn
+const bgMusic = document.getElementById("bgMusic");
+bgMusic.volume = 0.5;
+bgMusic.play().catch(() => {
+  const resumeAudio = () => {
+    bgMusic.play();
+    document.removeEventListener("click", resumeAudio);
+    document.removeEventListener("keydown", resumeAudio);
+  };
+  document.addEventListener("click", resumeAudio);
+  document.addEventListener("keydown", resumeAudio);
+});
+
 let scene = new THREE.Scene();
 scene.background = new THREE.Color(0x160016);
 let camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
@@ -34,10 +49,27 @@ let pushShift = () => {
     Math.random() * 0.9 + 0.1
   );
 }
+// Hàm tạo điểm trên bề mặt trái tim 3D
+// Profile trái tim (r, y) xoay quanh trục Y → bề mặt 3D đối xứng
+// Nhìn từ mọi góc ngang đều thấy trái tim, nhìn từ trên xuống thấy hình tròn
+function heartPoint() {
+  let t = Math.random() * Math.PI * 2;
+  let s = Math.random() * Math.PI * 2;
+  let scale = 0.62;
+  // Bán kính ngang của trái tim tại tham số t
+  let r = 16 * Math.pow(Math.sin(t), 3);
+  // Chiều cao của trái tim tại tham số t
+  let y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+  // Xoay bán kính r quanh trục Y để tạo khối 3D
+  let x = r * Math.cos(s) * scale;
+  let z = r * Math.sin(s) * scale;
+  return new THREE.Vector3(x, y * scale, z);
+}
+
 let pts = new Array(25000).fill().map(p => {
   sizes.push(Math.random() * 1.5 + 0.5);
   pushShift();
-  return new THREE.Vector3().randomDirection().multiplyScalar(Math.random() * 0.5 + 9.5);
+  return heartPoint();
 })
 for(let i = 0; i < 50000; i++){
   let r = 10, R = 40;
@@ -101,7 +133,6 @@ let m = new THREE.PointsMaterial({
 });
 let p = new THREE.Points(g, m);
 p.rotation.order = "ZYX";
-p.rotation.z = 0.2;
 scene.add(p)
 
 let clock = new THREE.Clock();
@@ -116,7 +147,8 @@ renderer.setAnimationLoop(() => {
 
 
 var i = 0;
-var txt1 = "Sagi yêu dấu...! <Nhưng không hề đầu gấu, <<Sagi babi...!  <Nhưng không hề chi li.  <<Sagi thân mến...! <Nhưng không thích chơi nến.     <<Sagi slay...     <Chắc là có straight =))))) <<Sagi Sagi...!   <Cái tên thật mê li, mê li....!";
+//var txt1 = "Sagi yêu dấu...! <Nhưng không hề đầu gấu, <<Sagi babi...!  <Nhưng không hề chi li.  <<Sagi thân mến...! <Nhưng không thích chơi nến.     <<Sagi slay...     <Chắc là có straight =))))) <<Sagi Sagi...!   <Cái tên thật mê li, mê li....";
+var txt1 = "Chúc em có 1 ngày 8/3 vui vẻ nhé! ❤️. <Luv you!";
 var speed = 50;
 typeWriter();
 function typeWriter() {
