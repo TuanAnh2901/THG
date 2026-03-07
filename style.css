@@ -13,14 +13,14 @@ body{
   gap: 8px;
 }
 .music-label{
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
+  color: rgba(236, 226, 226, 0.7);
+  font-size: 20px;
   font-family: cursive;
   white-space: nowrap;
 }
 .music-toggle{
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.2);
@@ -39,7 +39,7 @@ body{
   left:0;
   height:80%;
   width:30%;
-  text-align:;
-  color:white;
+  text-align:left;
+  color:rgb(199, 221, 223);
   font-family:cursive;
 }

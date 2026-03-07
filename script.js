@@ -95,7 +95,7 @@ function sampleHeartT() {
 
 function heartPoint() {
   let t = sampleHeartT();
-  let scale = 0.62;
+  let scale = 0.52;
   let fill = Math.sqrt(Math.random());
   let radialNoise = 0.94 + Math.random() * 0.12;
   let xEdge = 16 * Math.pow(Math.sin(t), 3) * radialNoise;
@@ -107,16 +107,16 @@ function heartPoint() {
   return new THREE.Vector3(x, y, z);
 }
 
-let pts = new Array(100000).fill().map(p => {
+let pts = new Array(200000).fill().map(p => {
   sizes.push(Math.random() * 1.5 + 0.5);
   pushShift();
   return heartPoint();
 })
-for(let i = 0; i < 50000; i++){
+for(let i = 0; i < 100000; i++){
   let r = 10, R = 40;
   let rand = Math.pow(Math.random(), 1.5);
   let radius = Math.sqrt(R * R * rand + (1 - rand) * r * r);
-  pts.push(new THREE.Vector3().setFromCylindricalCoords(radius, Math.random() * 2 * Math.PI, (Math.random() - 0.5) * 2 ));
+  pts.push(new THREE.Vector3().setFromCylindricalCoords(radius, Math.random() * 2 * Math.PI, (Math.random() - 0.5) * 3 ));
   sizes.push(Math.random() * 1.5 + 0.5);
   pushShift();
 }
@@ -190,8 +190,8 @@ renderer.setAnimationLoop(() => {
 
 var i = 0;
 //var txt1 = "Sagi yêu dấu...! <Nhưng không hề đầu gấu, <<Sagi babi...!  <Nhưng không hề chi li.  <<Sagi thân mến...! <Nhưng không thích chơi nến.     <<Sagi slay...     <Chắc là có straight =))))) <<Sagi Sagi...!   <Cái tên thật mê li, mê li....";
-var txt1 = "Chúc em có 1 ngày 8/3 vui vẻ nhé! ❤️. <Luv you!";
-var speed = 50;
+var txt1 = "Chúc cô gái có 1 ngày 8/3 vui vẻ, xinh đẹp, hạnh phúc nhé  <❤️❤️❤️ <Luv you!";
+var speed = 35;
 typeWriter();
 function typeWriter() {
   bgMusic.play().catch(() => {});
