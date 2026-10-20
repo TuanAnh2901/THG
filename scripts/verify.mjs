@@ -449,6 +449,17 @@ check('landscape', async () => {
   assert(scroll, 'landscape viewport scrolls horizontally');
 });
 
+check('tier', async ({ page }) => {
+  const r = await page.evaluate(() => ({
+    tier: document.documentElement.dataset.glassTier,
+    ua: navigator.userAgent,
+  }));
+  const chromium = /Chrome|Chromium|Edg\//.test(r.ua) && !/Edge\//.test(r.ua);
+  if (chromium) assert(r.tier === 'refract', `chromium should get tier refract, got ${r.tier}`);
+  else assert(r.tier === 'blur' || r.tier === 'solid', `non-chromium must not use refract, got ${r.tier}`);
+  return { tier: r.tier };
+});
+
 check('console', async () => {
   const real = consoleErrors
     .filter((e) => !IGNORED_ERROR_PAGES.has(e.page))

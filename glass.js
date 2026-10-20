@@ -109,14 +109,17 @@ function svgEl(name, attrs = {}) {
 export function detectTier() {
   const forced = new URLSearchParams(location.search).get('tier');
   const tiers = ['refract', 'blur', 'solid'];
+  // Only Chromium implements backdrop-filter: url() correctly. Safari claims support in
+  // some versions but renders the filter wrong, so it stays on the blur tier.
+  const chromium = /Chrome|Chromium|Edg\//.test(navigator.userAgent) && !/Edge\//.test(navigator.userAgent);
   if (forced && tiers.includes(forced)) {
-    if (forced === 'refract' && !CSS.supports('backdrop-filter', 'url(#a)')) return 'blur';
+    if (forced === 'refract' && !(chromium && CSS.supports('backdrop-filter', 'url(#a)'))) return 'blur';
     return forced;
   }
   if (matchMedia('(prefers-reduced-transparency: reduce)').matches) return 'solid';
   const hasFilter = CSS.supports('backdrop-filter', 'blur(2px)') || CSS.supports('-webkit-backdrop-filter', 'blur(2px)');
   if (!hasFilter) return 'solid';
-  if (CSS.supports('backdrop-filter', 'url(#a)')) return 'refract';
+  if (chromium && CSS.supports('backdrop-filter', 'url(#a)')) return 'refract';
   return 'blur';
 }
 
