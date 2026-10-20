@@ -124,23 +124,41 @@ export function detectTier() {
 
 const DEFAULTS = {
   radius: null,
-  bezel: 14,
-  scale: -0.35,
-  chroma: 6,
-  blur: 2,
   fade: 2,
-  saturate: 1.8,
-  brightness: 1.06,
   tint: 'rgba(255,255,255,.06)',
   specular: 0.6,
-  shadow: true,
   interactive: true,
   pressable: false,
   tier: 'auto',
 };
 
+/** Read a numeric token from :root (px and unitless). */
+function cssNum(name, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Read a percentage token from :root and normalise to a ratio (180% -> 1.8). */
+function cssRatio(name, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (raw.endsWith('%')) {
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? n / 100 : fallback;
+  }
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export function attach(el, options = {}) {
   const opts = { ...DEFAULTS, ...options };
+  // CSS tokens are the single source of truth; inline options win.
+  const scale = opts.scale ?? cssNum('--lg-scale', -0.35);
+  const bezel = opts.bezel ?? cssNum('--lg-bezel', 14);
+  const chroma = opts.chroma ?? cssNum('--lg-chroma', 6);
+  const blur = opts.blur ?? cssNum('--lg-blur', 2);
+  const saturate = opts.saturate ?? cssRatio('--lg-sat', 1.8);
+  const brightness = opts.brightness ?? cssNum('--lg-bright', 1.06);
   const tier = opts.tier === 'auto' ? detectTier() : opts.tier;
   const host = document.getElementById('glass-host') || document.body;
   const id = `glass-${++uid}`;
@@ -161,7 +179,7 @@ export function attach(el, options = {}) {
     if (tier !== 'refract') return;
 
     const radius = readRadius();
-    const map = buildMap(rect.width, rect.height, { radius, bezel: opts.bezel, fade: opts.fade });
+    const map = buildMap(rect.width, rect.height, { radius, bezel, fade: opts.fade });
     if (svg) svg.remove();
 
     svg = svgEl('svg', { width: 0, height: 0, 'aria-hidden': 'true', focusable: 'false' });
@@ -178,12 +196,12 @@ export function attach(el, options = {}) {
 
     // Displace the backdrop through the map, then frost it, then push colour.
     // Chromatic aberration: three passes at slightly different strength, one per channel.
-    const pxScale = displacementScale(opts.scale, opts.bezel);
-    const chroma = opts.chroma / 100;
+    const pxScale = displacementScale(scale, bezel);
+    const chromaRatio = chroma / 100;
     const passes = [
       { factor: 1, result: 'base' },
-      { factor: 1 + chroma, result: 'warm' },
-      { factor: 1 - chroma, result: 'cool' },
+      { factor: 1 + chromaRatio, result: 'warm' },
+      { factor: 1 - chromaRatio, result: 'cool' },
     ];
     for (const p of passes) {
       filter.appendChild(svgEl('feDisplacementMap', {
@@ -201,12 +219,12 @@ export function attach(el, options = {}) {
     const rgb = svgEl('feBlend', { in: 'rg', in2: 'b', mode: 'screen', result: 'rgb' });
     filter.append(rg, rgb);
 
-    filter.appendChild(svgEl('feGaussianBlur', { in: 'rgb', stdDeviation: opts.blur, result: 'frost' }));
-    filter.appendChild(svgEl('feColorMatrix', { in: 'frost', type: 'saturate', values: opts.saturate }));
+    filter.appendChild(svgEl('feGaussianBlur', { in: 'rgb', stdDeviation: blur, result: 'frost' }));
+    filter.appendChild(svgEl('feColorMatrix', { in: 'frost', type: 'saturate', values: saturate }));
     const lift = svgEl('feComponentTransfer', { result: 'lit' });
-    lift.appendChild(svgEl('feFuncR', { type: 'linear', slope: opts.brightness, intercept: 0 }));
-    lift.appendChild(svgEl('feFuncG', { type: 'linear', slope: opts.brightness, intercept: 0 }));
-    lift.appendChild(svgEl('feFuncB', { type: 'linear', slope: opts.brightness, intercept: 0 }));
+    lift.appendChild(svgEl('feFuncR', { type: 'linear', slope: brightness, intercept: 0 }));
+    lift.appendChild(svgEl('feFuncG', { type: 'linear', slope: brightness, intercept: 0 }));
+    lift.appendChild(svgEl('feFuncB', { type: 'linear', slope: brightness, intercept: 0 }));
     filter.appendChild(lift);
 
     defs.appendChild(filter);
@@ -216,12 +234,9 @@ export function attach(el, options = {}) {
   };
 
   el.style.setProperty('--lg-tint', opts.tint);
-  el.style.setProperty('--lg-blur', `${opts.blur}px`);
-  el.style.setProperty('--lg-sat', `${opts.saturate * 100}%`);
-  el.style.setProperty('--lg-bright', String(opts.brightness));
-  if (opts.shadow) {
-    el.style.boxShadow = 'var(--lg-shadow), inset 0 1px 1px var(--rim-light)';
-  }
+  el.style.setProperty('--lg-blur', `${blur}px`);
+  el.style.setProperty('--lg-sat', `${saturate * 100}%`);
+  el.style.setProperty('--lg-bright', String(brightness));
 
   build();
   ro = new ResizeObserver(() => {

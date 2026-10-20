@@ -11,10 +11,10 @@
   --lg-blur: 2px;
   --lg-sat: 180%;
   --lg-bright: 1.06;
-  --lg-scale: -0.35;
-  --lg-chroma: 6px;
+  --lg-scale: -0.5;
+  --lg-chroma: 8;
   --lg-radius: 32px;
-  --lg-bezel: 14px;
+  --lg-bezel: 16px;
   --lg-tint: rgba(255, 255, 255, .06);
   --lg-border: rgba(255, 255, 255, .13);
   --lg-shadow: 0 24px 60px rgba(0, 0, 0, .45);
@@ -92,7 +92,13 @@ body {
   border-radius: var(--lg-radius);
   background: var(--lg-tint);
   border: 1px solid var(--lg-border);
-  box-shadow: var(--lg-shadow), inset 0 1px 1px var(--rim-light);
+  box-shadow:
+    var(--lg-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, .5),
+    inset 0 -1px 0 var(--rim-dark),
+    inset 1px 0 0 rgba(0, 0, 0, .14),
+    inset -1px 0 0 rgba(0, 0, 0, .14),
+    inset 0 1px 1px var(--rim-light);
   overflow: hidden;
   backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
   -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
