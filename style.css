@@ -9,13 +9,13 @@
   --text-dim: rgba(245, 242, 248, .72);
 
   --lg-blur: 2px;
-  --lg-sat: 180%;
-  --lg-bright: 1.06;
+  --lg-sat: 160%;
+  --lg-bright: 1;
   --lg-scale: -0.5;
   --lg-chroma: 8;
   --lg-radius: 32px;
   --lg-bezel: 16px;
-  --lg-tint: rgba(255, 255, 255, .06);
+  --lg-tint: rgba(12, 8, 20, .34);
   --lg-border: rgba(255, 255, 255, .13);
   --lg-shadow: 0 24px 60px rgba(0, 0, 0, .45);
   --rim-light: rgba(255, 255, 255, .5);
@@ -122,6 +122,18 @@ body {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+/* Dark base under the text so the message stays readable over bright particles;
+   the rim keeps the refracted backdrop. */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(11, 8, 18, .78) 0%, rgba(11, 8, 18, .58) 45%, rgba(11, 8, 18, .66) 100%);
+}
+
+.glass > * { position: relative; z-index: 1; }
 
 /* ------------------------------------------------------------------ text */
 
