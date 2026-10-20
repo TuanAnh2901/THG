@@ -1,0 +1,28 @@
+{
+  "name": "thg",
+  "version": "1.0.0",
+  "description": "",
+  
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "verify": "node scripts/verify.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TuanAnh2901/THG.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/TuanAnh2901/THG/issues"
+  },
+  "homepage": "https://github.com/TuanAnh2901/THG#readme",
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}
+
