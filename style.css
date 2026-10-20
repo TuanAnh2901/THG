@@ -1,45 +1,220 @@
-body{
-  overflow: hidden;
+/* THG — 20/10 gift page. Tokens first, then layout, then components. */
+
+:root {
+  --bg-0: #0b0812;
+  --bg-1: #150d20;
+  --accent: #ff7ab6;
+  --accent-2: #8b5cf6;
+  --text: #f5f2f8;
+  --text-dim: rgba(245, 242, 248, .72);
+
+  --lg-blur: 2px;
+  --lg-sat: 180%;
+  --lg-bright: 1.06;
+  --lg-scale: -0.35;
+  --lg-chroma: 6px;
+  --lg-radius: 32px;
+  --lg-bezel: 14px;
+  --lg-tint: rgba(255, 255, 255, .06);
+  --lg-border: rgba(255, 255, 255, .13);
+  --lg-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+  --rim-light: rgba(255, 255, 255, .5);
+  --rim-dark: rgba(0, 0, 0, .18);
+
+  --dock-size: 56px;
+  --ease-out: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
   margin: 0;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  overflow-x: hidden;
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(120% 80% at 12% 8%, rgba(139, 92, 246, .34), transparent 60%),
+    radial-gradient(100% 70% at 88% 12%, rgba(255, 122, 182, .26), transparent 62%),
+    radial-gradient(90% 90% at 50% 110%, rgba(255, 122, 182, .12), transparent 60%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1));
+  background-attachment: fixed;
 }
-.music-toggle-wrapper{
+
+/* ------------------------------------------------------------------ heart */
+
+#bg-heart {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+#heart-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(closest-side, rgba(255, 122, 182, .35), transparent 70%) 50% 45% / 42vmin 42vmin no-repeat,
+    radial-gradient(closest-side, rgba(139, 92, 246, .28), transparent 70%) 50% 52% / 30vmin 30vmin no-repeat;
+  filter: blur(2px);
+}
+
+#heart-fallback[hidden] { display: none; }
+
+#glass-host { position: fixed; width: 0; height: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+
+/* ------------------------------------------------------------------ stage */
+
+.stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 2rem);
+  padding-bottom: calc(var(--dock-size) + 3rem);
+}
+
+/* ------------------------------------------------------------------ glass */
+
+.glass {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  border-radius: var(--lg-radius);
+  background: var(--lg-tint);
+  border: 1px solid var(--lg-border);
+  box-shadow: var(--lg-shadow), inset 0 1px 1px var(--rim-light);
+  overflow: hidden;
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+}
+
+/* Chromium: real edge refraction through the generated displacement map.
+   Blur/saturation/brightness live inside the filter, so the rim stays crisp. */
+[data-glass-tier="refract"] .glass {
+  backdrop-filter: var(--lg-refract);
+  -webkit-backdrop-filter: var(--lg-refract);
+}
+
+/* Safari / Firefox: blur + tint, flat rim. */
+[data-glass-tier="blur"] .glass {
+  background: rgba(255, 255, 255, .1);
+}
+
+/* prefers-reduced-transparency or no backdrop-filter at all: opaque. */
+[data-glass-tier="solid"] .glass {
+  background: rgba(20, 14, 30, .94);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ------------------------------------------------------------------ text */
+
+.msg__eyebrow {
+  margin: 0 0 .75rem;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.msg__title {
+  margin: 0 0 1rem;
+  font-size: clamp(1.6rem, 4.2vw, 2.4rem);
+  line-height: 1.35;
+  letter-spacing: -.01em;
+  font-weight: 650;
+  text-wrap: pretty;
+  text-shadow: 0 1px 14px rgba(11, 8, 18, .55);
+}
+
+.msg__body {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.6;
+  text-shadow: 0 1px 12px rgba(11, 8, 18, .5);
+}
+
+.msg__meta {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  color: var(--text-dim);
+  font-size: .9rem;
   display: flex;
-  flex-direction: column;
+  gap: .75rem;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
 }
-.music-label{
-  color: rgba(236, 226, 226, 0.7);
-  font-size: 20px;
-  font-family: cursive;
-  white-space: nowrap;
+
+/* ------------------------------------------------------------------ dock */
+
+.dock {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3;
+  display: flex;
+  gap: 12px;
 }
-.music-toggle{
-  width: 60px;
-  height: 60px;
+
+.dock__btn {
+  width: var(--dock-size);
+  height: var(--dock-size);
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 20px;
+  background: var(--lg-tint);
+  border: 1px solid var(--lg-border);
+  color: var(--text);
   cursor: pointer;
-  backdrop-filter: blur(5px);
-  transition: background 0.3s;
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 1px var(--rim-light);
+  transition: transform .18s var(--ease-out), background-color .2s ease, box-shadow .2s ease;
 }
-.music-toggle:hover{
-  background: rgba(255, 255, 255, 0.4);
+
+.dock__btn:hover { background: rgba(255, 255, 255, .12); }
+.dock__btn:active { transform: scale(.94); }
+
+.dock__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
-.container{
-  position:absolute;
-  top:0;
-  left:0;
-  height:80%;
-  width:30%;
-  text-align:left;
-  color:rgb(199, 221, 223);
-  font-family:cursive;
+
+.dock__icon { display: grid; place-items: center; line-height: 0; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .dock {
+    left: 50%;
+    right: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock__btn { transition: none; }
 }

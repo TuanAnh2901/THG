@@ -117,16 +117,19 @@ check('glass', async ({ page }) => {
       backdrop: cs.backdropFilter || cs.webkitBackdropFilter || '',
       radius: cs.borderRadius,
       hasFilter: !!disp,
+      hasBlur: !!disp?.querySelector('feGaussianBlur'),
       srgb: disp?.getAttribute('color-interpolation-filters') ?? null,
     };
   });
   assert(r.tier, 'data-glass-tier missing on <html>');
   assert(['refract', 'blur', 'solid'].includes(r.tier), `unknown tier ${r.tier}`);
-  assert(r.backdrop.includes('blur('), `backdrop-filter has no blur: "${r.backdrop}"`);
   if (r.tier === 'refract') {
     assert(r.backdrop.includes('url('), `refract tier without url() filter: "${r.backdrop}"`);
     assert(r.hasFilter, 'no feDisplacementMap filter in DOM');
     assert(r.srgb === 'sRGB', `filter color-interpolation-filters=${r.srgb}, must be sRGB`);
+    assert(r.hasBlur, 'filter chain has no feGaussianBlur (frost must live inside the filter)');
+  } else {
+    assert(r.backdrop.includes('blur('), `backdrop-filter has no blur: "${r.backdrop}"`);
   }
   assert(parseFloat(r.radius) > 0, `card border-radius ${r.radius}`);
 });

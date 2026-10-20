@@ -1,43 +1,57 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="vi" data-glass-tier="refract">
 <head>
   <meta charset="UTF-8">
-  <title>A mysterious gift for you</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Một ngày 20/10 dành cho bạn</title>
+  <meta name="description" content="Một món quà nhỏ cho ngày 20/10 — trái tim hạt sáng, kính Liquid Glass và một lời chúc.">
+  <meta name="theme-color" content="#0b0812">
+  <meta property="og:title" content="Một ngày 20/10 dành cho bạn">
+  <meta property="og:description" content="Một món quà nhỏ cho ngày 20/10 — trái tim hạt sáng, kính Liquid Glass và một lời chúc.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%97%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="./style.css">
-
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.186.1",
+      "three/addons/controls/OrbitControls.js": "https://esm.sh/three@0.186.1/examples/jsm/controls/OrbitControls.js"
+    }
+  }
+  </script>
 </head>
 <body>
-<!-- partial:index.partial.html -->
-<html>
-<head>
-  <title>8/3 vui vẻ nhé</title>
-</head>
-<body>
-  
+  <canvas id="bg-heart" aria-hidden="true"></canvas>
+  <div id="heart-fallback" aria-hidden="true" hidden></div>
+  <div id="glass-host" aria-hidden="true"></div>
 
-<div class="bg_heart">
-</div>
+  <main class="stage">
+    <article id="glass-card" class="glass" data-glass='{"pressable":false}'>
+      <p class="msg__eyebrow">20 · 10</p>
+      <h1 id="text1" class="msg__title">Chúc bạn một ngày 20/10 thật dịu dàng — nhẹ nhõm trong tâm trí, ấm áp trong lời chúc, và rạng rỡ như những điều đẹp vẫn đang đợi bạn. Chúc bạn luôn được yêu thương, luôn mạnh mẽ, và luôn là chính mình.</h1>
+      <p class="msg__body">Một chút kính, một chút ánh sáng, và cả trái tim này — dành cho ngày của bạn.</p>
+      <footer class="msg__meta">
+        <span class="msg__date">20 tháng 10</span>
+        <!-- SIGN-OFF -->
+      </footer>
+    </article>
+  </main>
 
-<div class="container">
- 
+  <nav id="dock" class="dock" aria-label="Điều khiển">
+    <button id="btn-music" class="dock__btn" type="button" aria-pressed="false" aria-label="Bật nhạc" data-glass='{"pressable":true}'>
+      <span class="dock__icon" data-icon="play" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8 5.14v13.72L19 12 8 5.14z"/></svg>
+      </span>
+    </button>
+    <button id="btn-replay" class="dock__btn" type="button" aria-pressed="false" aria-label="Xem lại lời nhắn" data-glass='{"pressable":true}'>
+      <span class="dock__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 5V2L8 6l4 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+      </span>
+    </button>
+  </nav>
 
-<h2 id="text1"></h2>
-
-
-  </div>
-  
-
-
-
-</body>
-</html>
-<!-- partial -->
   <audio id="bgMusic" src="./music.mp3" loop></audio>
-  <div class="music-toggle-wrapper">
-    <span class="music-label">Bật nhạc ở đây nhé! 💖</span>
-    <button id="musicToggle" class="music-toggle">▶</button>
-  </div>
+  <script type="module" src="./glass.js"></script>
   <script type="module" src="./script.js"></script>
-
 </body>
 </html>

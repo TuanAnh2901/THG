@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liquid Glass — bảng tham số</title>
+<style>
+  :root { --ink: #f5f2f8; }
+  body {
+    margin: 0; min-height: 100vh; padding: 32px; color: var(--ink);
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,122,182,.5) 0 14px, transparent 14px 28px),
+      repeating-linear-gradient(-45deg, rgba(139,92,246,.5) 0 14px, transparent 14px 28px),
+      radial-gradient(60% 60% at 30% 20%, #ff9ecb, transparent 60%),
+      radial-gradient(60% 60% at 75% 80%, #7c5cff, transparent 60%),
+      #120c1c;
+  }
+  h1 { font-size: 15px; margin: 0 0 20px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+  .cell { display: grid; gap: 8px; }
+  .cell__label { opacity: .85; }
+  .panel {
+    height: 220px; border-radius: 32px; border: 1px solid rgba(255,255,255,.25);
+    display: grid; place-items: center; font-size: 22px; font-weight: 700;
+    text-shadow: 0 2px 10px rgba(0,0,0,.5);
+    box-shadow: 0 24px 60px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.5);
+    background: rgba(255,255,255,.06);
+  }
+</style>
+</head>
+<body>
+  <h1>Liquid Glass — bảng tham số (refract)</h1>
+  <div class="grid" id="grid"></div>
+  <script type="module">
+    import { LiquidGlass } from '../../glass.js';
+
+    const VARIANTS = [
+      { scale: -0.35, bezel: 14, chroma: 6, blur: 2, label: 'default -0.35 / bezel 14 / CA 6' },
+      { scale: -0.6, bezel: 14, chroma: 6, blur: 2, label: 'mạnh -0.6 / bezel 14 / CA 6' },
+      { scale: -0.35, bezel: 26, chroma: 6, blur: 2, label: 'rộng -0.35 / bezel 26 / CA 6' },
+      { scale: -0.35, bezel: 14, chroma: 0, blur: 2, label: 'không CA -0.35 / bezel 14 / CA 0' },
+      { scale: -0.35, bezel: 14, chroma: 20, blur: 2, label: 'CA mạnh -0.35 / bezel 14 / CA 20' },
+      { scale: -0.35, bezel: 14, chroma: 6, blur: 8, label: 'đục hơn -0.35 / bezel 14 / blur 8' },
+    ];
+
+    const grid = document.getElementById('grid');
+    for (const v of VARIANTS) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const label = document.createElement('div');
+      label.className = 'cell__label';
+      label.textContent = v.label;
+      const panel = document.createElement('div');
+      panel.className = 'panel';
+      panel.textContent = '20 · 10';
+      cell.append(label, panel);
+      grid.appendChild(cell);
+      const { scale, bezel, chroma, blur } = v;
+      LiquidGlass.attach(panel, { scale, bezel, chroma, blur, interactive: false, pressable: false });
+    }
+  </script>
+</body>
+</html>
