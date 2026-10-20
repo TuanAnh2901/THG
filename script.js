@@ -222,6 +222,7 @@ function startHeart() {
     cloud.rotation.y = t * 0.05;
     cloud.rotation.x = 0;
     renderer.render(scene, camera);
+    window.__thg.frames = (window.__thg.frames ?? 0) + 1;
   };
 
   const loop = () => {
@@ -268,6 +269,7 @@ window.__thg = {
   replay: playFromStart,
   setMusic,
   reducedMotion: reduceMotion.matches,
+  frames: 0,
 };
 
 startHeart();

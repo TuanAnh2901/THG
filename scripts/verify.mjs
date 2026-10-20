@@ -55,6 +55,36 @@ const check = (name, fn) => { CHECKS[name] = fn; };
 
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+/** Mean sRGB of a screenshot region, measured by the browser itself. */
+async function meanColor(page, pngBuffer) {
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const { data } = g.getImageData(0, 0, c.width, c.height);
+    let r = 0, g2 = 0, b = 0;
+    const n = data.length / 4;
+    for (let i = 0; i < data.length; i += 4) { r += data[i]; g2 += data[i + 1]; b += data[i + 2]; }
+    return [r / n, g2 / n, b / n];
+  }, pngBuffer.toString('base64'));
+}
+
+const relLuminance = ([r, g, b]) => {
+  const f = (v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+
+const contrastRatio = (a, b) => {
+  const l1 = relLuminance(a);
+  const l2 = relLuminance(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+};
+
 const browser = await chromium.launch({ channel: 'msedge' });
 
 const desktopCtx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -255,6 +285,54 @@ check('heart', async ({ page }) => {
   assert(r.points <= 120000, `too many particles: ${r.points}`);
 });
 
+check('contrast', async ({ page }) => {
+  const targets = ['.msg__title', '.msg__body'];
+  await page.evaluate((sels) => {
+    for (const s of sels) document.querySelector(s).style.visibility = 'hidden';
+  }, targets);
+
+  const measured = [];
+  for (const sel of targets) {
+    const box = await page.locator(sel).boundingBox();
+    const shot = await page.screenshot({ clip: box });
+    const bg = await meanColor(page, shot);
+    const style = await page.evaluate((s) => {
+      const cs = getComputedStyle(document.querySelector(s));
+      return { color: cs.color, fontSize: parseFloat(cs.fontSize) };
+    }, sel);
+    const m = style.color.match(/rgba?\(([^)]+)\)/);
+    const parts = (m ? m[1] : '255,255,255').split(',').map((v) => parseFloat(v));
+    const alpha = parts.length > 3 ? parts[3] : 1;
+    // composite the (possibly translucent) text colour over the measured backdrop
+    const fg = parts.slice(0, 3).map((v, i) => v * alpha + bg[i] * (1 - alpha));
+    const ratio = contrastRatio(fg, bg);
+    measured.push({ sel, ratio: Math.round(ratio * 100) / 100, size: style.fontSize, alpha });
+  }
+
+  await page.evaluate((sels) => {
+    for (const s of sels) document.querySelector(s).style.visibility = '';
+  }, targets);
+
+  for (const m of measured) {
+    const large = m.size >= 24 || (m.size >= 18.66);
+    const min = large ? 3 : 4.5;
+    assert(m.ratio >= min, `${m.sel} contrast ${m.ratio}:1 (needs ${min}:1, size ${m.size}px)`);
+  }
+  return Object.fromEntries(measured.map((m) => [m.sel, `${m.ratio}:1@${m.size}px`]));
+});
+
+check('motion', async ({ page }) => {
+  const frames = await page.evaluate(() => window.__thg?.frames ?? 0);
+  assert(frames > 0, 'heart never rendered a frame');
+
+  const before = await reduced.evaluate(() => window.__thg?.frames ?? 0);
+  await reduced.waitForTimeout(900);
+  const after = await reduced.evaluate(() => window.__thg?.frames ?? 0);
+  assert(before === after, `reduced-motion page still animating (frames ${before} -> ${after})`);
+  const flag = await reduced.evaluate(() => window.__thg?.reducedMotion === true);
+  assert(flag, 'reduced-motion context did not report reducedMotion');
+});
+
 check('console', async () => {
   const real = consoleErrors.filter((e) => !/favicon\.ico/i.test(e));
   assert(real.length === 0, `console errors:\n  - ${real.slice(0, 5).join('\n  - ')}`);
@@ -265,8 +343,11 @@ check('console', async () => {
 for (const [name, fn] of Object.entries(CHECKS)) {
   if (ONLY && !ONLY.includes(name)) continue;
   try {
-    await fn({ page: desktop, mobile });
-    results.push([name, 'PASS', '']);
+    const detail = await fn({ page: desktop, mobile });
+    const note = detail && typeof detail === 'object'
+      ? Object.entries(detail).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ')
+      : (typeof detail === 'string' ? detail : '');
+    results.push([name, 'PASS', note]);
   } catch (e) {
     results.push([name, 'FAIL', e.message]);
   }
