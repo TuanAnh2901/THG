@@ -8,6 +8,8 @@ Bản gốc (2022–2026-03) là quà 8/3, lấy từ CodePen `Wink196/pen/bGKgO
 | Từ | Nghĩa trong repo này |
 |---|---|
 | **Heart** | Trường hạt Three.js ở nền, tạo hình trái tim bằng shader point sprite. Không phải ảnh. |
+| **Ring / Vành** | Vành hạt tròn nghiêng bao quanh tim (như vành hành tinh), quay quanh trục riêng. Là **một phần bản sắc** của bản gốc — không được xoá. |
+| **System** | Group chứa heart + vành; xoay chậm quanh trục Y. Kéo chuột = orbit. |
 | **Glass card** | Panel giữa màn hình, vật liệu Liquid Glass, chứa lời nhắn 20/10. |
 | **Dock** | Cụm 2 nút kính: bật/tắt nhạc + replay lời nhắn. |
 | **Map** | Canvas sinh ra từ SDF rounded-rect; R/G = vector lệch, B = specular mask; nạp vào SVG filter bằng `feImage`. |
@@ -45,3 +47,4 @@ Bản gốc (2022–2026-03) là quà 8/3, lấy từ CodePen `Wink196/pen/bGKgO
 | D6 | Deploy qua GitHub Pages workflow, push thẳng `main` | Cần link để gửi người nhận; repo cá nhân 1 người | spec §6 |
 | D7 | `three` import **động** (`await import('three')`) | CDN chết thì chỉ mất heart, typewriter + nhạc vẫn chạy | review pass |
 | D8 | Heart fallback hiện mặc định, chỉ ẩn khi WebGL OK | Không JS vẫn thấy tim + đọc được lời nhắn | review pass |
+| D9 | Bảng chúc mừng nằm 1 góc, cảnh 3D (tim + vành) là nhân vật chính | Feedback: card ở giữa che hết cảnh, làm mất ý nghĩa của scene 3D | feedback 2026-10-21 |

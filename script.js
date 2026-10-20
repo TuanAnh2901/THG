@@ -114,7 +114,7 @@ async function startHeart() {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
-  camera.position.set(0, 3.0, 15);
+  camera.position.set(0, 6, 31);
 
   renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall() ? 1.5 : 2));
   renderer.setSize(innerWidth, innerHeight);
@@ -123,6 +123,7 @@ async function startHeart() {
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.enableZoom = false;
+  controls.target.set(0, 0, 0);
 
   const uniforms = { time: { value: 0 } };
   const sizes = [];
@@ -162,7 +163,6 @@ async function startHeart() {
       Math.random() * 0.9 + 0.1,
     );
   }
-
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   geometry.setAttribute('sizes', new THREE.Float32BufferAttribute(sizes, 1));
   geometry.setAttribute('shift', new THREE.Float32BufferAttribute(shift, 4));
@@ -214,7 +214,53 @@ async function startHeart() {
 
   const cloud = new THREE.Points(geometry, material);
   cloud.rotation.order = 'ZYX';
-  scene.add(cloud);
+
+  // The ring: an annulus of particles around the heart, like planetary rings.
+  const ringCount = isSmall() ? 22000 : 55000;
+  const ringPoints = new Array(ringCount);
+  const ringSizes = [];
+  const ringShift = [];
+  const RING_INNER = 9.5;
+  const RING_OUTER = 21;
+  for (let i = 0; i < ringCount; i++) {
+    const radius = RING_INNER + (RING_OUTER - RING_INNER) * Math.random();
+    const theta = Math.random() * Math.PI * 2;
+    ringPoints[i] = new THREE.Vector3(Math.cos(theta) * radius, (Math.random() - 0.5) * 1.6, Math.sin(theta) * radius);
+    ringSizes.push(Math.random() * 1.2 + 0.45);
+    ringShift.push(
+      Math.random() * Math.PI,
+      Math.random() * Math.PI * 2,
+      (Math.random() * 0.9 + 0.1) * Math.PI * 0.06,
+      Math.random() * 0.5 + 0.15,
+    );
+  }
+  const ringGeometry = new THREE.BufferGeometry().setFromPoints(ringPoints);
+  ringGeometry.setAttribute('sizes', new THREE.Float32BufferAttribute(ringSizes, 1));
+  ringGeometry.setAttribute('shift', new THREE.Float32BufferAttribute(ringShift, 4));
+  const ring = new THREE.Points(ringGeometry, material);
+  // pivot carries the tilt, the ring itself spins around its own normal
+  const ringPivot = new THREE.Group();
+  ringPivot.rotation.x = -0.52;
+  ringPivot.rotation.z = 0.08;
+  ringPivot.add(ring);
+
+  const system = new THREE.Group();
+  system.add(cloud, ringPivot);
+  system.position.set(isSmall() ? 0 : 2.4, isSmall() ? -3.4 : 0, 0);
+  scene.add(system);
+
+  const frameCamera = () => {
+    const aspect = innerWidth / innerHeight;
+    const distance = aspect < 0.8 ? 52 : aspect < 1.3 ? 40 : 31;
+    // on a narrow screen look down a bit more so the ring reads as an ellipse
+    const height = aspect < 0.8 ? 17 : 6;
+    controls.target.set(system.position.x, 0, 0);
+    camera.position.set(system.position.x, height, distance);
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+    controls.update();
+  };
+  frameCamera();
 
   const clock = new THREE.Clock();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -222,8 +268,8 @@ async function startHeart() {
   const render = () => {
     const t = clock.getElapsedTime() * 0.5;
     uniforms.time.value = t * Math.PI;
-    cloud.rotation.y = t * 0.05;
-    cloud.rotation.x = 0;
+    system.rotation.y = t * 0.06;
+    ring.rotation.y = t * 0.12;
     renderer.render(scene, camera);
     window.__thg.frames = (window.__thg.frames ?? 0) + 1;
   };
@@ -247,10 +293,9 @@ async function startHeart() {
   document.addEventListener('visibilitychange', onVisibility);
 
   const onResize = () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
     renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall() ? 1.5 : 2));
     renderer.setSize(innerWidth, innerHeight);
+    frameCamera();
   };
   window.addEventListener('resize', onResize);
 
@@ -260,6 +305,7 @@ async function startHeart() {
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('resize', onResize);
     geometry.dispose();
+    ringGeometry.dispose();
     material.dispose();
     renderer.dispose();
   };

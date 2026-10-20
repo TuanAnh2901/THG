@@ -445,6 +445,7 @@ check('landscape', async () => {
   });
   const overlap = boxes.card.l < boxes.dock.r && boxes.dock.l < boxes.card.r && boxes.card.t < boxes.dock.b && boxes.dock.t < boxes.card.b;
   assert(!overlap, `dock overlaps the card in landscape: card=${JSON.stringify(boxes.card)} dock=${JSON.stringify(boxes.dock)}`);
+  assert(boxes.card.b <= 360, `card is ${Math.round(boxes.card.b)}px tall, taller than the 360px viewport`);
   const scroll = await landscape.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   assert(scroll, 'landscape viewport scrolls horizontally');
 });
