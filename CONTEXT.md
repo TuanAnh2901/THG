@@ -43,3 +43,5 @@ Bản gốc (2022–2026-03) là quà 8/3, lấy từ CodePen `Wink196/pen/bGKgO
 | D4 | Bố cục: glass card giữa, heart làm nền | Chữ phải đọc được (F1) + kính cần nội dung phía sau để bẻ cong | spec §1.1, §4.2 |
 | D5 | Chỉ 2 nút điều khiển (nhạc, replay) | YAGNI; kính đẹp nhờ nền particle, không cần thêm chức năng | interview |
 | D6 | Deploy qua GitHub Pages workflow, push thẳng `main` | Cần link để gửi người nhận; repo cá nhân 1 người | spec §6 |
+| D7 | `three` import **động** (`await import('three')`) | CDN chết thì chỉ mất heart, typewriter + nhạc vẫn chạy | review pass |
+| D8 | Heart fallback hiện mặc định, chỉ ẩn khi WebGL OK | Không JS vẫn thấy tim + đọc được lời nhắn | review pass |

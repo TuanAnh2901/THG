@@ -1,5 +1,8 @@
 # THG 20/10 — Liquid Glass Redesign — Implementation Plan
 
+> **Status: completed.** 14/14 verify checks pass locally and against the live site
+> (https://tuananh2901.github.io/THG/). Shipped in `4abf183` + review fix pass.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Đưa trang quà tặng `THG` từ bản 8/3 lỗi bố cục lên bản 20/10 có vật liệu Liquid Glass thật, đọc được trên desktop lẫn mobile, và deploy lên GitHub Pages.
