@@ -1,8 +1,5 @@
 // THG — 20/10 gift page. Typewriter, music and the heart.
 
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
 const textEl = document.getElementById('text1');
 const FULL_TEXT = textEl ? textEl.textContent.trim() : '';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -47,9 +44,7 @@ function paintMusicButton() {
   const playing = !bgMusic.paused;
   musicBtn.setAttribute('aria-pressed', String(playing));
   musicBtn.setAttribute('aria-label', playing ? 'Tắt nhạc' : 'Bật nhạc');
-  for (const icon of musicBtn.querySelectorAll('[data-icon]')) {
-    icon.hidden = icon.dataset.icon !== (playing ? 'pause' : 'play');
-  }
+  musicBtn.classList.toggle('is-playing', playing);
 }
 
 function setMusic(on) {
@@ -85,8 +80,6 @@ paintMusicButton();
 
 replayBtn.addEventListener('click', () => {
   playFromStart();
-  replayBtn.setAttribute('aria-pressed', 'true');
-  setTimeout(() => replayBtn.setAttribute('aria-pressed', 'false'), 400);
 });
 
 /* ----------------------------------------------------------------- heart */
@@ -96,23 +89,32 @@ const fallback = document.getElementById('heart-fallback');
 const isSmall = () => window.innerWidth < 640;
 const PARTICLES = () => (isSmall() ? 45000 : 120000);
 
-function startHeart() {
+async function startHeart() {
   if (!canvas) return;
+  let THREE;
+  let OrbitControls;
+  try {
+    THREE = await import('three');
+    ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+  } catch {
+    // CDN unreachable: keep the page interactive, show the CSS heart instead
+    return;
+  }
+
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
   } catch {
-    fallback?.removeAttribute('hidden');
     return;
   }
   if (!renderer.getContext()) {
-    fallback?.removeAttribute('hidden');
     return;
   }
+  fallback.hidden = true;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
-  camera.position.set(0, 3.4, 19);
+  camera.position.set(0, 3.0, 15);
 
   renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall() ? 1.5 : 2));
   renderer.setSize(innerWidth, innerHeight);
@@ -120,6 +122,7 @@ function startHeart() {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.enablePan = false;
+  controls.enableZoom = false;
 
   const uniforms = { time: { value: 0 } };
   const sizes = [];
@@ -251,7 +254,8 @@ function startHeart() {
   };
   window.addEventListener('resize', onResize);
 
-  const onPageHide = () => {
+  const onPageHide = (event) => {
+    if (event.persisted) return; // bfcache restore: keep the scene alive
     renderer.setAnimationLoop(null);
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('resize', onResize);
@@ -259,7 +263,7 @@ function startHeart() {
     material.dispose();
     renderer.dispose();
   };
-  window.addEventListener('pagehide', onPageHide, { once: true });
+  window.addEventListener('pagehide', onPageHide);
 
   window.__thg.heartPoints = count;
 }

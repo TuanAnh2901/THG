@@ -48,6 +48,7 @@ const ONLY = onlyArg ? onlyArg.slice('--only='.length).split(',').map((s) => s.t
 
 const results = [];
 const consoleErrors = [];
+const IGNORED_ERROR_PAGES = new WeakSet();
 
 const CHECKS = {};
 /** Register a check. `fn` receives { page, mobile } and throws on failure. */
@@ -96,15 +97,42 @@ const reduced = await reducedCtx.newPage();
 const solidCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const solid = await solidCtx.newPage();
 
-for (const p of [desktop, mobile, reduced, solid]) {
-  p.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(`${m.text()} @ ${m.location().url ?? ''}`); });
-  p.on('pageerror', (e) => consoleErrors.push('pageerror: ' + String(e) + ' @ ' + (e.stack ?? '').split('\n')[0]));
+// no-JS: the page must still read and still show a heart
+const nojsCtx = await browser.newContext({ viewport: { width: 1440, height: 900 }, javaScriptEnabled: false });
+const nojs = await nojsCtx.newPage();
+
+// CDN down: the page must keep its interactions
+const offlineCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await offlineCtx.route('**esm.sh**', (route) => route.abort());
+const offline = await offlineCtx.newPage();
+// the offline page is *supposed* to fail its CDN requests
+IGNORED_ERROR_PAGES.add(offline);
+
+// landscape phone: the dock must not sit on top of the card
+const landscapeCtx = await browser.newContext({ viewport: { width: 740, height: 360 } });
+const landscape = await landscapeCtx.newPage();
+
+// prefers-reduced-transparency: everything translucent must go opaque
+const transparencyCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const transparency = await transparencyCtx.newPage();
+const transparencyCdp = await transparencyCtx.newCDPSession(transparency);
+await transparencyCdp.send('Emulation.setEmulatedMedia', {
+  features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }],
+});
+
+for (const p of [desktop, mobile, reduced, solid, nojs, offline, landscape, transparency]) {
+  p.on('console', (m) => { if (m.type() === 'error') consoleErrors.push({ page: p, text: `${m.text()} @ ${m.location().url ?? ''}` }); });
+  p.on('pageerror', (e) => consoleErrors.push({ page: p, text: 'pageerror: ' + String(e) + ' @ ' + (e.stack ?? '').split('\n')[0] }));
 }
 
 await desktop.goto(BASE, { waitUntil: 'domcontentloaded' });
 await mobile.goto(BASE, { waitUntil: 'domcontentloaded' });
 await reduced.goto(BASE, { waitUntil: 'domcontentloaded' });
 await solid.goto(BASE + (BASE.includes('?') ? '&' : '?') + 'tier=solid', { waitUntil: 'domcontentloaded' });
+await nojs.goto(BASE, { waitUntil: 'domcontentloaded' });
+await offline.goto(BASE, { waitUntil: 'domcontentloaded' });
+await landscape.goto(BASE, { waitUntil: 'domcontentloaded' });
+await transparency.goto(BASE, { waitUntil: 'domcontentloaded' });
 await desktop.waitForTimeout(1500);
 
 // ---------------------------------------------------------------- checks ----
@@ -121,7 +149,6 @@ check('structure', async ({ page }) => {
       card: !!document.querySelector('#glass-card'),
       dockButtons: document.querySelectorAll('#dock button').length,
       audio: !!document.querySelector('#bgMusic'),
-      text: (document.querySelector('#text1')?.textContent ?? '').trim(),
       title: document.title,
     };
   });
@@ -132,9 +159,14 @@ check('structure', async ({ page }) => {
   assert(r.card, '#glass-card missing');
   assert(r.dockButtons === 2, `expected 2 dock buttons, got ${r.dockButtons}`);
   assert(r.audio, '#bgMusic missing');
-  assert(r.text.length > 80, `#text1 too short (${r.text.length})`);
-  assert(r.text.includes('20'), '#text1 does not mention 20');
   assert(r.title !== 'A mysterious gift for you', `stale title: ${r.title}`);
+
+  // the message must be in the markup, not only typed in by JS
+  const html = await (await page.request.get(BASE)).text();
+  const h1 = html.match(/<h1[^>]*id="text1"[^>]*>([\s\S]*?)<\/h1>/);
+  const message = (h1?.[1] ?? '').replace(/<[^>]+>/g, '').trim();
+  assert(message.length >= 80, `message in markup is only ${message.length} chars`);
+  assert(message.includes('20/10'), 'message does not mention 20/10');
 });
 
 check('a11y', async ({ page }) => {
@@ -152,9 +184,9 @@ check('a11y', async ({ page }) => {
     };
   });
   for (const b of r.btns) {
-    assert(b.pressed !== null, `#${b.id} missing aria-pressed`);
     assert(b.label && b.label.length > 2, `#${b.id} missing aria-label`);
     assert(b.w >= 44 && b.h >= 44, `#${b.id} hit area ${b.w}x${b.h} < 44px`);
+    if (b.id === 'btn-music') assert(b.pressed !== null, '#btn-music missing aria-pressed');
   }
   // keyboard reachability
   await page.keyboard.press('Tab');
@@ -333,8 +365,95 @@ check('motion', async ({ page }) => {
   assert(flag, 'reduced-motion context did not report reducedMotion');
 });
 
+check('icons', async ({ page }) => {
+  const visible = async () => page.evaluate(() => {
+    const btn = document.querySelector('#btn-music');
+    return [...btn.querySelectorAll('svg[data-icon]')]
+      .filter((s) => getComputedStyle(s).display !== 'none')
+      .map((s) => s.dataset.icon);
+  });
+
+  await page.evaluate(() => window.__thg.setMusic(false));
+  await page.waitForTimeout(250);
+  const paused = await visible();
+  assert(paused.length === 1, `expected 1 visible icon when paused, got [${paused}]`);
+  assert(paused[0] === 'play', `paused state shows "${paused[0]}"`);
+
+  await page.evaluate(() => window.__thg.setMusic(true));
+  await page.waitForTimeout(250);
+  const playing = await visible();
+  assert(playing.length === 1, `expected 1 visible icon when playing, got [${playing}]`);
+  assert(playing[0] === 'pause', `playing state shows "${playing[0]}"`);
+});
+
+check('offline', async () => {
+  await offline.waitForTimeout(800);
+  const hasApi = await offline.evaluate(() => typeof window.__thg?.replay === 'function' && typeof window.__thg?.setMusic === 'function');
+  assert(hasApi, 'CDN down: window.__thg missing (whole module died with the three.js import)');
+  const fallbackVisible = await offline.evaluate(() => {
+    const fb = document.querySelector('#heart-fallback');
+    return fb ? getComputedStyle(fb).display !== 'none' : false;
+  });
+  assert(fallbackVisible, 'CDN down: heart fallback not shown');
+  await offline.locator('#btn-music').click();
+  await offline.waitForTimeout(200);
+  const pressed = await offline.locator('#btn-music').getAttribute('aria-pressed');
+  assert(pressed === 'true', `CDN down: music button did not toggle (aria-pressed=${pressed})`);
+});
+
+check('nojs', async () => {
+  const text = await nojs.evaluate(() => document.querySelector('#text1')?.textContent?.trim().length ?? 0);
+  assert(text >= 80, `no-JS: message not readable (${text} chars)`);
+  const fallbackVisible = await nojs.evaluate(() => {
+    const fb = document.querySelector('#heart-fallback');
+    return fb ? getComputedStyle(fb).display !== 'none' : false;
+  });
+  assert(fallbackVisible, 'no-JS: heart fallback not visible');
+});
+
+check('transparency', async () => {
+  await transparency.waitForTimeout(600);
+  const r = await transparency.evaluate(() => {
+    const btn = document.querySelector('#btn-music');
+    const card = document.querySelector('#glass-card');
+    const alphaOf = (el) => {
+      const m = getComputedStyle(el).backgroundColor.match(/rgba?\(([^)]+)\)/);
+      const p = (m ? m[1] : '0,0,0,0').split(',').map((v) => parseFloat(v));
+      return p.length > 3 ? p[3] : 1;
+    };
+    return {
+      tier: document.documentElement.dataset.glassTier,
+      cardBackdrop: getComputedStyle(card).backdropFilter,
+      cardAlpha: alphaOf(card),
+      btnBackdrop: getComputedStyle(btn).backdropFilter,
+      btnAlpha: alphaOf(btn),
+    };
+  });
+  assert(r.tier === 'solid', `reduced-transparency tier is ${r.tier}`);
+  assert(!r.cardBackdrop.includes('blur('), `card still blurred: ${r.cardBackdrop}`);
+  assert(r.cardAlpha >= 0.85, `card alpha ${r.cardAlpha} < 0.85`);
+  assert(!r.btnBackdrop.includes('blur('), `dock button still blurred: ${r.btnBackdrop}`);
+  assert(r.btnAlpha >= 0.85, `dock button alpha ${r.btnAlpha} < 0.85`);
+});
+
+check('landscape', async () => {
+  await landscape.waitForTimeout(600);
+  const boxes = await landscape.evaluate(() => {
+    const card = document.querySelector('#glass-card').getBoundingClientRect();
+    const dock = document.querySelector('#dock').getBoundingClientRect();
+    return { card: { l: card.left, r: card.right, t: card.top, b: card.bottom }, dock: { l: dock.left, r: dock.right, t: dock.top, b: dock.bottom } };
+  });
+  const overlap = boxes.card.l < boxes.dock.r && boxes.dock.l < boxes.card.r && boxes.card.t < boxes.dock.b && boxes.dock.t < boxes.card.b;
+  assert(!overlap, `dock overlaps the card in landscape: card=${JSON.stringify(boxes.card)} dock=${JSON.stringify(boxes.dock)}`);
+  const scroll = await landscape.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  assert(scroll, 'landscape viewport scrolls horizontally');
+});
+
 check('console', async () => {
-  const real = consoleErrors.filter((e) => !/favicon\.ico/i.test(e));
+  const real = consoleErrors
+    .filter((e) => !IGNORED_ERROR_PAGES.has(e.page))
+    .map((e) => e.text)
+    .filter((t) => !/favicon\.ico/i.test(t));
   assert(real.length === 0, `console errors:\n  - ${real.slice(0, 5).join('\n  - ')}`);
 });
 

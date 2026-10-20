@@ -102,7 +102,7 @@ Cơ chế (theo kỹ thuật đã đọc từ `sohumsuthar/liquid-glass`, `deepi
    - `blur`: Safari/Firefox → chỉ blur + rim.
    - `solid`: `prefers-reduced-transparency: reduce` hoặc thiếu `backdrop-filter` → nền đục, vẫn giữ hình dạng + shadow.
 5. **Đầy đủ thuộc tính**: specular hai-tone (hairline sáng trên+dưới, tối trái+phải), **physics** (press → `scale(.965)` + rim energize; hover → specular bám con trỏ qua CSS var `--lg-x/--lg-y`), **shimmer** 360° quét khi bấm, `corner-shape: squircle` (Chrome 139+, progressive), ambient tint, glow viền trong.
-6. **Perf**: map sinh 1 lần / element, regenerate khi resize (ResizeObserver + debounce 150ms); hover/press chỉ set CSS var → **không** JS per-frame; không tạo thêm WebGL context.
+6. **Perf**: map sinh 1 lần / element, regenerate khi resize (ResizeObserver + debounce 150ms); hover/press chỉ set CSS var → **không** JS per-frame; không tạo thêm WebGL context. Specular bám con trỏ hiện bằng `background-image: radial-gradient(... at calc(var(--lg-x)*100%) ...)` trên chính element, nên không tốn thêm lớp DOM.
 
 ### 4.2 Tokens (`style.css`)
 
@@ -124,6 +124,7 @@ Layout: `body` grid 1 cột, card `max-width:560px`, `margin:auto`, `padding:cla
 
 - Pin `three@0.186.1` (latest ổn định tại thời điểm viết spec) qua importmap + esm CDN, ví dụ
   `https://esm.sh/three@0.186.1` và `https://esm.sh/three@0.186.1/examples/jsm/controls/OrbitControls.js` (bỏ `cdn.skypack.dev` 0.136); `OrbitControls` đúng version.
+- **Import động** (`await import('three')` trong `startHeart()`): CDN chết thì chỉ mất heart, typewriter + nhạc + dock vẫn chạy. Khi đó fallback CSS heart hiện sẵn (mặc định visible, chỉ ẩn khi WebGL khởi tạo được).
 - DPR cap: `min(devicePixelRatio, 2)` desktop, `1.5` mobile.
 - Hạt: tim 120k (desktop) / 45k (mobile); **bỏ dải hạt ngang rác** ở hiện trạng, tăng mật độ tim.
 - Pause render khi `document.hidden`; `dispose()` + `cancelAnimationFrame` khi `pagehide`.
@@ -135,8 +136,8 @@ Layout: `body` grid 1 cột, card `max-width:560px`, `margin:auto`, `padding:cla
 
 - `prefers-reduced-motion: reduce` → hiện full text, particle đứng yên (render 1 frame), tắt physics/shimmer.
 - `prefers-reduced-transparency: reduce` → tier `solid`.
-- Nút: `aria-pressed`, `aria-label` đổi theo trạng thái, `:focus-visible` ring 2px, hit area ≥ 44px.
-- Text trong card ≥ 4.5:1 (nền tối + blur ≥ 12px phía sau chữ).
+- Nút: `aria-pressed` (nút nhạc — toggle), `aria-label` đổi theo trạng thái, `:focus-visible` ring 2px, hit area ≥ 44px. Nút "xem lại" là action (không `aria-pressed`).
+- Text trong card ≥ 4.5:1 — đo bằng **pixel thật** (screenshot → canvas trong browser): hiện ~10.4:1 cho tiêu đề, ~6.2:1 cho phụ. Card dùng lớp overlay tối gradient (`::before`) thay cho yêu cầu blur ≥ 12px, vì blur kính chỉ 2px.
 - Trang đọc được khi JS lỗi: nội dung nằm sẵn trong HTML.
 
 ## 5. Kiểm chứng

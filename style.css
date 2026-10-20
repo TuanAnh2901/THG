@@ -80,17 +80,22 @@ body {
   place-items: center;
   padding: clamp(1rem, 4vw, 2rem);
   padding-bottom: calc(var(--dock-size) + 3rem);
+  /* let the canvas receive drag gestures for the orbit controls */
+  pointer-events: none;
 }
+
+.glass { pointer-events: auto; }
 
 /* ------------------------------------------------------------------ glass */
 
 .glass {
   position: relative;
   width: 100%;
-  max-width: 560px;
+  max-width: 520px;
   padding: clamp(1.5rem, 4vw, 2.75rem);
   border-radius: var(--lg-radius);
-  background: var(--lg-tint);
+  background-color: var(--lg-tint);
+  background-image: radial-gradient(220px circle at calc(var(--lg-x, .5) * 100%) calc(var(--lg-y, .5) * 100%), rgba(255, 255, 255, .14), transparent 62%);
   border: 1px solid var(--lg-border);
   box-shadow:
     var(--lg-shadow),
@@ -107,18 +112,19 @@ body {
 /* Chromium: real edge refraction through the generated displacement map.
    Blur/saturation/brightness live inside the filter, so the rim stays crisp. */
 [data-glass-tier="refract"] .glass {
-  backdrop-filter: var(--lg-refract);
-  -webkit-backdrop-filter: var(--lg-refract);
+  backdrop-filter: var(--lg-refract, blur(2px) saturate(180%));
+  -webkit-backdrop-filter: var(--lg-refract, blur(2px) saturate(180%));
 }
 
 /* Safari / Firefox: blur + tint, flat rim. */
 [data-glass-tier="blur"] .glass {
-  background: rgba(255, 255, 255, .1);
+  background-color: rgba(255, 255, 255, .1);
 }
 
 /* prefers-reduced-transparency or no backdrop-filter at all: opaque. */
-[data-glass-tier="solid"] .glass {
-  background: rgba(20, 14, 30, .94);
+[data-glass-tier="solid"] .glass,
+[data-glass-tier="solid"] .dock__btn {
+  background-color: rgba(20, 14, 30, .94);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -130,7 +136,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(11, 8, 18, .78) 0%, rgba(11, 8, 18, .58) 45%, rgba(11, 8, 18, .66) 100%);
+  background: linear-gradient(180deg, rgba(11, 8, 18, .66) 0%, rgba(11, 8, 18, .42) 45%, rgba(11, 8, 18, .52) 100%);
 }
 
 .glass > * { position: relative; z-index: 1; }
@@ -148,7 +154,7 @@ body {
 
 .msg__title {
   margin: 0 0 1rem;
-  font-size: clamp(1.6rem, 4.2vw, 2.4rem);
+  font-size: clamp(1.5rem, 3.6vw, 2.05rem);
   line-height: 1.35;
   letter-spacing: -.01em;
   font-weight: 650;
@@ -194,7 +200,8 @@ body {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--lg-tint);
+  background-color: var(--lg-tint);
+  background-image: radial-gradient(90px circle at calc(var(--lg-x, .5) * 100%) calc(var(--lg-y, .5) * 100%), rgba(255, 255, 255, .18), transparent 65%);
   border: 1px solid var(--lg-border);
   color: var(--text);
   cursor: pointer;
@@ -213,6 +220,10 @@ body {
 }
 
 .dock__icon { display: grid; place-items: center; line-height: 0; }
+
+.dock__btn svg[data-icon="pause"] { display: none; }
+.dock__btn.is-playing svg[data-icon="play"] { display: none; }
+.dock__btn.is-playing svg[data-icon="pause"] { display: block; }
 
 /* ------------------------------------------------------- glass behaviour */
 
@@ -243,28 +254,34 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   [data-glass] { transition: none; }
-  [data-glass].is-shimmer::after { animation: none; }
+  [data-glass].is-shimmer::after { animation: none; display: none; }
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
+#heart-fallback[hidden] { display: none; }
 
 @media (max-width: 640px) {
   .dock {
     left: 50%;
     right: auto;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
     transform: translateX(-50%);
   }
 }
 
+/* Landscape phone: the dock moves to the top so it never sits on the card. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .dock {
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    bottom: auto;
+    right: 12px;
+    left: auto;
+    transform: none;
+  }
+  .stage { padding-top: calc(var(--dock-size) + 2rem); }
+  .glass { max-width: min(560px, calc(100vw - 200px)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dock__btn { transition: none; }
+  [data-glass].is-shimmer::after { animation: none; display: none; }
 }

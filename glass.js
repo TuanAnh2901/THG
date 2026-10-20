@@ -125,10 +125,9 @@ export function detectTier() {
 const DEFAULTS = {
   radius: null,
   fade: 2,
-  tint: 'rgba(255,255,255,.06)',
-  specular: 0.6,
   interactive: true,
   pressable: false,
+  filter: true,
   tier: 'auto',
 };
 
@@ -177,7 +176,7 @@ export function attach(el, options = {}) {
   const build = () => {
     const rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    if (tier !== 'refract') return;
+    if (tier !== 'refract' || !opts.filter) return;
 
     const radius = readRadius();
     const map = buildMap(rect.width, rect.height, { radius, bezel, fade: opts.fade });
@@ -234,7 +233,6 @@ export function attach(el, options = {}) {
     el.style.setProperty('--lg-refract', `url(#${id})`);
   };
 
-  el.style.setProperty('--lg-tint', opts.tint);
   el.style.setProperty('--lg-blur', `${blur}px`);
   el.style.setProperty('--lg-sat', `${saturate * 100}%`);
   el.style.setProperty('--lg-bright', String(brightness));
