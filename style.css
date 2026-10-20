@@ -202,6 +202,38 @@ body {
 
 .dock__icon { display: grid; place-items: center; line-height: 0; }
 
+/* ------------------------------------------------------- glass behaviour */
+
+[data-glass] {
+  position: relative;
+  overflow: hidden;
+  transform: scale(calc(1 - .035 * var(--lg-press, 0)));
+  transition: transform .18s var(--ease-out);
+}
+
+[data-glass].is-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, .3) 28deg, transparent 72deg);
+  animation: lg-shimmer .7s linear;
+}
+
+@keyframes lg-shimmer {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@supports (corner-shape: squircle) {
+  [data-glass] { corner-shape: squircle; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-glass] { transition: none; }
+  [data-glass].is-shimmer::after { animation: none; }
+}
+
 .sr-only {
   position: absolute;
   width: 1px; height: 1px;

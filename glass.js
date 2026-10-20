@@ -160,6 +160,7 @@ export function attach(el, options = {}) {
   const saturate = opts.saturate ?? cssRatio('--lg-sat', 1.8);
   const brightness = opts.brightness ?? cssNum('--lg-bright', 1.06);
   const tier = opts.tier === 'auto' ? detectTier() : opts.tier;
+  document.documentElement.dataset.glassTier = tier;
   const host = document.getElementById('glass-host') || document.body;
   const id = `glass-${++uid}`;
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');

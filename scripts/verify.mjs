@@ -3,10 +3,46 @@
 //   node scripts/verify.mjs --only=glass    -> run a subset
 // Exit code = number of failed checks.
 import { chromium } from 'playwright-core';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const BASE = process.env.THG_URL ?? 'http://127.0.0.1:8777/index.html';
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SHOTS = '.tmp/shots';
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.mp3': 'audio/mpeg',
+  '.ico': 'image/x-icon',
+};
+
+/** Minimal static server so `node scripts/verify.mjs` needs nothing installed. */
+async function startServer() {
+  const server = createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://localhost');
+      const rel = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
+      const file = join(ROOT, rel === '' ? 'index.html' : rel);
+      if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
+      const body = await readFile(file);
+      res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' });
+      res.end(body);
+    } catch {
+      res.writeHead(404).end('not found');
+    }
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  return { server, url: `http://127.0.0.1:${server.address().port}/index.html` };
+}
+
+const started = process.env.THG_URL ? null : await startServer();
+const BASE = process.env.THG_URL ?? started.url;
 const onlyArg = process.argv.find((a) => a.startsWith('--only='));
 const ONLY = onlyArg ? onlyArg.slice('--only='.length).split(',').map((s) => s.trim()).filter(Boolean) : null;
 
@@ -25,14 +61,20 @@ const desktopCtx = await browser.newContext({ viewport: { width: 1440, height: 9
 const desktop = await desktopCtx.newPage();
 const mobileCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const mobile = await mobileCtx.newPage();
+const reducedCtx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+const reduced = await reducedCtx.newPage();
+const solidCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const solid = await solidCtx.newPage();
 
-for (const p of [desktop, mobile]) {
+for (const p of [desktop, mobile, reduced, solid]) {
   p.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(`${m.text()} @ ${m.location().url ?? ''}`); });
   p.on('pageerror', (e) => consoleErrors.push('pageerror: ' + String(e) + ' @ ' + (e.stack ?? '').split('\n')[0]));
 }
 
-await desktop.goto(BASE, { waitUntil: 'load' });
-await mobile.goto(BASE, { waitUntil: 'load' });
+await desktop.goto(BASE, { waitUntil: 'domcontentloaded' });
+await mobile.goto(BASE, { waitUntil: 'domcontentloaded' });
+await reduced.goto(BASE, { waitUntil: 'domcontentloaded' });
+await solid.goto(BASE + (BASE.includes('?') ? '&' : '?') + 'tier=solid', { waitUntil: 'domcontentloaded' });
 await desktop.waitForTimeout(1500);
 
 // ---------------------------------------------------------------- checks ----
@@ -132,6 +174,28 @@ check('glass', async ({ page }) => {
     assert(r.backdrop.includes('blur('), `backdrop-filter has no blur: "${r.backdrop}"`);
   }
   assert(parseFloat(r.radius) > 0, `card border-radius ${r.radius}`);
+
+  // pointer tracking + shimmer
+  const btn = page.locator('#btn-music');
+  await btn.hover();
+  await page.waitForTimeout(120);
+  const lx = await page.evaluate(() => getComputedStyle(document.querySelector('#btn-music')).getPropertyValue('--lg-x').trim());
+  assert(lx !== '', 'hover did not set --lg-x (pointer specular)');
+  await btn.click({ force: true });
+  const shimmer = await page.evaluate(() => document.querySelector('#btn-music').classList.contains('is-shimmer'));
+  assert(shimmer, 'click did not trigger the shimmer sweep');
+
+  // forced solid tier: no refraction, opaque enough to read text on
+  const s = await solid.evaluate(() => {
+    const card = document.querySelector('#glass-card');
+    const cs = getComputedStyle(card);
+    const m = cs.backgroundColor.match(/rgba?\(([^)]+)\)/);
+    const parts = (m ? m[1] : '0,0,0,0').split(',').map((v) => parseFloat(v));
+    return { tier: document.documentElement.dataset.glassTier, backdrop: cs.backdropFilter, alpha: parts.length > 3 ? parts[3] : 1 };
+  });
+  assert(s.tier === 'solid', `forced tier=solid but tier is ${s.tier}`);
+  assert(!s.backdrop.includes('url('), `solid tier still uses a filter: ${s.backdrop}`);
+  assert(s.alpha >= 0.85, `solid tier background alpha ${s.alpha} < 0.85`);
 });
 
 check('copy', async ({ page }) => {
@@ -146,6 +210,10 @@ check('copy', async ({ page }) => {
   await page.evaluate(() => window.__thg.replay());
   await page.waitForFunction(() => (document.querySelector('#text1')?.textContent ?? '').includes('chính mình'), null, { timeout: 15000 })
     .catch(() => { throw new Error('replay did not complete within 15s'); });
+
+  // reduced motion: the full message must be there immediately, not typed out
+  const reducedLen = await reduced.evaluate(() => (document.querySelector('#text1')?.textContent ?? '').trim().length);
+  assert(reducedLen >= 80, `reduced-motion page shows only ${reducedLen} chars (should be the full message)`);
 });
 
 check('music', async ({ page }) => {
@@ -209,6 +277,7 @@ await desktop.screenshot({ path: `${SHOTS}/desktop-1440x900.png` });
 await mobile.screenshot({ path: `${SHOTS}/mobile-390x844.png` });
 
 await browser.close();
+if (started) started.server.close();
 
 let failed = 0;
 for (const [name, status, msg] of results) {
