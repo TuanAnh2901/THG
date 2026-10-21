@@ -4,13 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>20/10 vui vẻ nhé</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%97%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <div class="bg_heart">
   </div>
 
-  <div class="container glass">
+  <div id="glass-host" aria-hidden="true"></div>
+  <div class="container glass" data-glass='{"radius":26,"bezel":10,"scale":-0.35,"blur":12}'>
     <h2 id="text1"></h2>
   </div>
 
@@ -19,6 +21,7 @@
     <span class="music-label">Bật nhạc ở đây nhé! 💖</span>
     <button id="musicToggle" class="music-toggle">▶</button>
   </div>
+  <script type="module" src="./glass.js"></script>
   <script type="module" src="./script.js"></script>
 </body>
 </html>
