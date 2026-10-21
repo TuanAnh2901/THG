@@ -29,20 +29,32 @@ body{
   font-family: cursive;
   white-space: nowrap;
 }
+/* step 5: the music button becomes a glass lens */
 .music-toggle{
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
   color: white;
   font-size: 20px;
   cursor: pointer;
-  backdrop-filter: blur(5px);
-  transition: background 0.3s;
+  backdrop-filter: blur(6px) saturate(150%);
+  -webkit-backdrop-filter: blur(6px) saturate(150%);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -8px 16px -10px rgba(0, 0, 0, 0.5);
+  transition: background 0.3s, transform 0.18s cubic-bezier(.34, 1.56, .64, 1);
+  position: relative;
+  overflow: hidden;
 }
 .music-toggle:hover{
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.18);
+}
+.music-toggle:active{
+  transform: scale(0.94);
+}
+.music-toggle:focus-visible{
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 3px;
 }
 .container{
   position:absolute;
