@@ -126,12 +126,22 @@ Layout: `body` grid 1 cột, card `max-width:560px`, `margin:auto`, `padding:cla
 
 Cảnh là **một hệ 3D**: trái tim hạt ở giữa, quanh nó là **vành hạt tròn nghiêng** (như vành hành tinh), cả nhóm xoay chậm quanh trục Y, vành tự quay quanh trục riêng của nó. Kéo chuột để orbit (không zoom, không pan).
 
+**Cảnh phải chuyển động thấy được** (đã sửa sau phản hồi: mọi chuyển động trước đó đều là *no-op* về mặt thị giác):
+
+| Chuyển động | Vì sao trước đó không thấy | Cách sửa |
+|---|---|---|
+| Camera tự quanh | Không bật → azimuth đứng yên | `controls.autoRotate = true`, speed 0.6 (~3.5°/s) |
+| Vành tự quay | Vành tròn **đều** → quay không đổi hình | Vành có sóng (`radius += 0.9·sin3θ + 0.35·sin7θ`) + mật độ theo góc → quay là thấy |
+| Hạt rung | `shift.z·t` chạy 0.05–0.49 rad/s → chu kỳ **13–125s** | Nhân thời gian shader ×5 → hạt nhảy rõ |
+| Cả hệ nghiêng nhẹ | Xoay Y là no-op (tim đối xứng Y) | Thêm `rotation.x/z` dao động nhẹ + `controls.update(dt)` không phụ thuộc FPS |
+
 - Pin `three@0.186.1` (latest ổn định tại thời điểm viết spec) qua importmap + esm CDN, ví dụ
   `https://esm.sh/three@0.186.1` và `https://esm.sh/three@0.186.1/examples/jsm/controls/OrbitControls.js` (bỏ `cdn.skypack.dev` 0.136); `OrbitControls` đúng version.
 - **Import động** (`await import('three')` trong `startHeart()`): CDN chết thì chỉ mất heart, typewriter + nhạc + dock vẫn chạy. Khi đó fallback CSS heart hiện sẵn (mặc định visible, chỉ ẩn khi WebGL khởi tạo được).
 - DPR cap: `min(devicePixelRatio, 2)` desktop, `1.5` mobile.
 - Hạt: tim 120k desktop / 45k mobile; vành 55k desktop / 22k mobile (bán kính 9.5 → 21, nghiêng −0.52 rad, độ dày ±0.8). **Vành là một phần của bản sắc** (bản gốc có dải hạt vòng quanh tim) — không được xoá.
 - Camera tự đóng khung theo tỉ lệ: khoảng cách 31 (desktop) / 40 (tablet) / 52 (dọc), nhìn từ cao hơn trên màn hình hẹp để vành thấy rõ là hình elip.
+- **Bảng chúc mừng không được làm "lồng" (cage)**: `.glass { pointer-events: none }` → kéo trên card vẫn xoay cảnh; specular bám con trỏ của card lấy từ `pointermove` toàn cục.
 - Pause render khi `document.hidden`; `dispose()` khi `pagehide` (trừ khi `event.persisted` — bfcache).
 - WebGL fail → fallback: CSS radial-gradient heart + nội dung vẫn hiện.
 - Bỏ `console.clear()`, `console.log(shader)`; bỏ jQuery `$()`; bỏ `innerHTML` trong typewriter (dùng `textContent` + node `<br>`).

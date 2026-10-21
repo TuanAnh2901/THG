@@ -80,13 +80,15 @@ body {
   pointer-events: none;
 }
 
-/* The greeting lives in one corner — the scene stays the main character. */
+/* The greeting lives in one corner — the scene stays the main character.
+   pointer-events: none so a drag over the card rotates the scene instead of
+   being swallowed by the glass. */
 .glass {
   position: absolute;
   top: 24px;
   left: 24px;
   width: min(380px, calc(100vw - 48px));
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------------ glass */
@@ -184,6 +186,13 @@ body {
   gap: .75rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.msg__hint {
+  margin-left: auto;
+  opacity: .65;
+  font-size: .82rem;
+  letter-spacing: .02em;
 }
 
 /* ------------------------------------------------------------------ dock */

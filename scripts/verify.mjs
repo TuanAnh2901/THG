@@ -112,6 +112,10 @@ IGNORED_ERROR_PAGES.add(offline);
 const landscapeCtx = await browser.newContext({ viewport: { width: 740, height: 360 } });
 const landscape = await landscapeCtx.newPage();
 
+// drag test: its own page, reloaded between drags so damping cannot leak between them
+const dragCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const dragPage = await dragCtx.newPage();
+
 // prefers-reduced-transparency: everything translucent must go opaque
 const transparencyCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const transparency = await transparencyCtx.newPage();
@@ -120,7 +124,7 @@ await transparencyCdp.send('Emulation.setEmulatedMedia', {
   features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }],
 });
 
-for (const p of [desktop, mobile, reduced, solid, nojs, offline, landscape, transparency]) {
+for (const p of [desktop, mobile, reduced, solid, nojs, offline, landscape, transparency, dragPage]) {
   p.on('console', (m) => { if (m.type() === 'error') consoleErrors.push({ page: p, text: `${m.text()} @ ${m.location().url ?? ''}` }); });
   p.on('pageerror', (e) => consoleErrors.push({ page: p, text: 'pageerror: ' + String(e) + ' @ ' + (e.stack ?? '').split('\n')[0] }));
 }
@@ -133,6 +137,7 @@ await nojs.goto(BASE, { waitUntil: 'domcontentloaded' });
 await offline.goto(BASE, { waitUntil: 'domcontentloaded' });
 await landscape.goto(BASE, { waitUntil: 'domcontentloaded' });
 await transparency.goto(BASE, { waitUntil: 'domcontentloaded' });
+await dragPage.goto(BASE, { waitUntil: 'domcontentloaded' });
 await desktop.waitForTimeout(1500);
 
 // ---------------------------------------------------------------- checks ----
@@ -357,12 +362,63 @@ check('motion', async ({ page }) => {
   const frames = await page.evaluate(() => window.__thg?.frames ?? 0);
   assert(frames > 0, 'heart never rendered a frame');
 
+  // the scene must visibly move on its own: the camera has to orbit, and the
+  // downscaled frames must differ (structure change, not per-particle jitter)
+  const az0 = await page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
+  assert(az0 !== null, 'OrbitControls not exposed on window.__thg');
+  const shotA = await page.screenshot();
+  await page.waitForTimeout(1500);
+  const shotB = await page.screenshot();
+  const az1 = await page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
+  assert(Math.abs(az1 - az0) > 0.01, `camera did not orbit on its own (azimuth ${az0} -> ${az1})`);
+
+  const coarse = await page.evaluate(async ([a, c]) => {
+    const load = async (s) => { const i = new Image(); i.src = 'data:image/png;base64,' + s; await i.decode(); return i; };
+    const draw = async (img) => {
+      const cv = document.createElement('canvas'); cv.width = 32; cv.height = 20;
+      const g = cv.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0, 32, 20);
+      return g.getImageData(0, 0, 32, 20).data;
+    };
+    const da = await draw(await load(a)); const dc = await draw(await load(c));
+    let sum = 0;
+    for (let i = 0; i < da.length; i += 4) sum += Math.abs(da[i] - dc[i]) + Math.abs(da[i + 1] - dc[i + 1]) + Math.abs(da[i + 2] - dc[i + 2]);
+    return sum / (da.length / 4) / 3;
+  }, [shotA.toString('base64'), shotB.toString('base64')]);
+  assert(coarse > 4, `scene looks static: downscaled frame diff ${coarse.toFixed(2)}/255 (need > 4)`);
+
   const before = await reduced.evaluate(() => window.__thg?.frames ?? 0);
   await reduced.waitForTimeout(900);
   const after = await reduced.evaluate(() => window.__thg?.frames ?? 0);
   assert(before === after, `reduced-motion page still animating (frames ${before} -> ${after})`);
   const flag = await reduced.evaluate(() => window.__thg?.reducedMotion === true);
   assert(flag, 'reduced-motion context did not report reducedMotion');
+});
+
+check('drag', async ({ page }) => {
+  const azimuth = () => page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
+  const drag = async (fromX, fromY, dx, dy) => {
+    await page.mouse.move(fromX, fromY);
+    await page.mouse.down();
+    await page.waitForTimeout(40);
+    const a0 = await azimuth();
+    for (let i = 1; i <= 10; i++) { await page.mouse.move(fromX + (dx * i) / 10, fromY + (dy * i) / 10, { steps: 2 }); await page.waitForTimeout(16); }
+    const a1 = await azimuth();
+    await page.mouse.up();
+    return Math.abs(a1 - a0);
+  };
+
+  // fresh page per drag: damping from a previous drag would otherwise leak into the next
+  await dragPage.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await dragPage.waitForTimeout(2500);
+  const card = await dragPage.locator('#glass-card').boundingBox();
+  const overCard = await drag(card.x + card.width / 2, card.y + card.height / 2, 300, -40);
+  assert(overCard > 0.05, `dragging over the glass card did not rotate the camera (${overCard} rad)`);
+
+  await dragPage.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await dragPage.waitForTimeout(2500);
+  const open = await drag(900, 450, -300, 60);
+  assert(open > 0.05, `dragging the open scene did not rotate the camera (${open} rad)`);
 });
 
 check('icons', async ({ page }) => {

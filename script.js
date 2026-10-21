@@ -78,6 +78,17 @@ paintMusicButton();
 
 /* ------------------------------------------------------------------ dock */
 
+// The card ignores the pointer so drags reach the canvas; feed its specular
+// highlight from the global pointer position instead.
+const cardEl = document.getElementById('glass-card');
+if (cardEl) {
+  window.addEventListener('pointermove', (e) => {
+    const r = cardEl.getBoundingClientRect();
+    cardEl.style.setProperty('--lg-x', ((e.clientX - r.left) / r.width).toFixed(4));
+    cardEl.style.setProperty('--lg-y', ((e.clientY - r.top) / r.height).toFixed(4));
+  }, { passive: true });
+}
+
 replayBtn.addEventListener('click', () => {
   playFromStart();
 });
@@ -123,6 +134,9 @@ async function startHeart() {
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.enableZoom = false;
+  // the scene has to breathe on its own — a still frame reads as "broken"
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.6;
   controls.target.set(0, 0, 0);
 
   const uniforms = { time: { value: 0 } };
@@ -223,10 +237,14 @@ async function startHeart() {
   const RING_INNER = 9.5;
   const RING_OUTER = 21;
   for (let i = 0; i < ringCount; i++) {
-    const radius = RING_INNER + (RING_OUTER - RING_INNER) * Math.random();
     const theta = Math.random() * Math.PI * 2;
+    // a wavy, lobed ring: a perfectly uniform annulus looks identical when it
+    // spins, which made the whole scene read as "frozen"
+    const wave = 0.9 * Math.sin(3 * theta) + 0.35 * Math.sin(7 * theta + 1.1);
+    const radius = RING_INNER + (RING_OUTER - RING_INNER) * Math.random() + wave;
     ringPoints[i] = new THREE.Vector3(Math.cos(theta) * radius, (Math.random() - 0.5) * 1.6, Math.sin(theta) * radius);
-    ringSizes.push(Math.random() * 1.2 + 0.45);
+    const lobe = 0.55 + 0.8 * Math.abs(Math.sin(2 * theta + 0.6));
+    ringSizes.push((Math.random() * 1.2 + 0.45) * lobe);
     ringShift.push(
       Math.random() * Math.PI,
       Math.random() * Math.PI * 2,
@@ -265,18 +283,29 @@ async function startHeart() {
   const clock = new THREE.Clock();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
-  const render = () => {
-    const t = clock.getElapsedTime() * 0.5;
-    uniforms.time.value = t * Math.PI;
-    system.rotation.y = t * 0.06;
-    ring.rotation.y = t * 0.12;
+  let elapsed = 0;
+  const render = (dt = 0.016) => {
+    elapsed += dt;
+    const t = elapsed * 0.5;
+    // the particle wobble used to run at 0.05-0.49 rad/s (13-125s per cycle),
+    // which is invisible to the eye — spin it up so the cloud actually dances
+    uniforms.time.value = t * Math.PI * 5;
+    system.rotation.y = t * 0.12;
+    system.rotation.x = Math.sin(elapsed * 0.17) * 0.035;
+    system.rotation.z = Math.cos(elapsed * 0.13) * 0.03;
+    ring.rotation.y = t * 0.35;
+    ringPivot.rotation.z = 0.08 + Math.sin(elapsed * 0.45) * 0.1;
     renderer.render(scene, camera);
     window.__thg.frames = (window.__thg.frames ?? 0) + 1;
   };
 
+  let last = performance.now();
   const loop = () => {
-    controls.update();
-    render();
+    const now = performance.now();
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    controls.update(dt);
+    render(dt);
   };
 
   if (reduced.matches) {
@@ -312,6 +341,12 @@ async function startHeart() {
   window.addEventListener('pagehide', onPageHide);
 
   window.__thg.heartPoints = count;
+  window.__thg.camera = camera;
+  window.__thg.controls = controls;
+  window.__thg.canvas = canvas;
+  window.__thg.system = system;
+  window.__thg.ring = ring;
+  window.__thg.cloud = cloud;
 }
 
 window.__thg = {
