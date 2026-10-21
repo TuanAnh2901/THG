@@ -69,4 +69,37 @@ body{
   backdrop-filter:blur(12px) saturate(150%);
   -webkit-backdrop-filter:blur(12px) saturate(150%);
   box-shadow:0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  overflow:hidden;
+  transition:transform .18s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* step 4: physics — specular follows the pointer, shimmer sweeps on click */
+.glass::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:radial-gradient(190px circle at calc(var(--lg-x, .5) * 100%) calc(var(--lg-y, .5) * 100%), rgba(255, 255, 255, .16), transparent 62%);
+  opacity:calc(.25 + .75 * var(--lg-hover, 0));
+  transition:opacity .25s ease;
+}
+.glass::after{
+  content:"";
+  position:absolute;
+  inset:-45%;
+  pointer-events:none;
+  background:conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, .28) 26deg, transparent 74deg);
+  opacity:0;
+}
+.glass.is-shimmer::after{
+  animation:lg-shimmer .7s linear;
+}
+@keyframes lg-shimmer{
+  from{ transform:rotate(0deg); opacity:.9; }
+  to{ transform:rotate(360deg); opacity:0; }
+}
+@media (prefers-reduced-motion: reduce){
+  .glass{ transition:none; }
+  .glass.is-shimmer::after{ animation:none; }
 }

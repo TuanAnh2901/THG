@@ -140,12 +140,37 @@ export function attachGlass(el, options = {}) {
   });
   ro.observe(el);
 
+  /* ------------------------------------------------------------ physics */
+
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+  const onMove = (e) => {
+    if (reduceMotion.matches) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--lg-x', ((e.clientX - r.left) / r.width).toFixed(4));
+    el.style.setProperty('--lg-y', ((e.clientY - r.top) / r.height).toFixed(4));
+    el.style.setProperty('--lg-hover', '1');
+  };
+  const onLeave = () => el.style.setProperty('--lg-hover', '0');
+  const onClick = () => {
+    if (reduceMotion.matches) return;
+    el.classList.add('is-shimmer');
+    setTimeout(() => el.classList.remove('is-shimmer'), 700);
+  };
+
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerleave', onLeave);
+  el.addEventListener('click', onClick);
+
   return {
     supported: true,
     update: build,
     destroy() {
       clearTimeout(timer);
       ro.disconnect();
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerleave', onLeave);
+      el.removeEventListener('click', onClick);
       svg.remove();
     },
   };
