@@ -86,6 +86,23 @@ const contrastRatio = (a, b) => {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 };
 
+/** Structural difference between two screenshots (downscales to kill particle jitter). */
+async function coarseDiff(page, a, c) {
+  return page.evaluate(async ([a64, c64]) => {
+    const load = async (s) => { const i = new Image(); i.src = 'data:image/png;base64,' + s; await i.decode(); return i; };
+    const draw = async (img) => {
+      const cv = document.createElement('canvas'); cv.width = 32; cv.height = 20;
+      const g = cv.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0, 32, 20);
+      return g.getImageData(0, 0, 32, 20).data;
+    };
+    const da = await draw(await load(a64)); const dc = await draw(await load(c64));
+    let sum = 0;
+    for (let i = 0; i < da.length; i += 4) sum += Math.abs(da[i] - dc[i]) + Math.abs(da[i + 1] - dc[i + 1]) + Math.abs(da[i + 2] - dc[i + 2]);
+    return sum / (da.length / 4) / 3;
+  }, [a.toString('base64'), c.toString('base64')]);
+}
+
 const browser = await chromium.launch({ channel: 'msedge' });
 
 const desktopCtx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -314,12 +331,26 @@ check('heart', async ({ page }) => {
       h: c?.getBoundingClientRect().height ?? 0,
       fallbackShown: fb ? getComputedStyle(fb).display !== 'none' : null,
       points: window.__thg?.heartPoints ?? null,
+      belt: window.__thg?.beltPoints ?? null,
+      beltInfo: window.__thg?.belt ?? null,
     };
   });
   assert(r.canvas, '#bg-heart canvas missing');
   assert(r.w > 0 && r.h > 0, `canvas has no size (${r.w}x${r.h})`);
   assert(r.points !== null, 'window.__thg.heartPoints missing');
-  assert(r.points <= 120000, `too many particles: ${r.points}`);
+  const mobile = r.w < 700;
+  const maxHeart = mobile ? 60000 : 200000;
+  assert(r.points <= maxHeart, `too many heart particles: ${r.points} (max ${maxHeart})`);
+  const maxBelt = mobile ? 30000 : 100000;
+  assert((r.belt?.count ?? r.belt ?? 0) <= maxBelt, `too many belt particles: ${r.belt?.count} (max ${maxBelt})`);
+  // the belt must be a clean, evenly spaced annulus: uniform radius distribution
+  // over [inner, outer] -> mean at the midpoint
+  const belt = r.beltInfo;
+  if (belt) {
+    const mid = (belt.inner + belt.outer) / 2;
+    assert(belt.outer > belt.inner, `belt has no hole (inner ${belt.inner} >= outer ${belt.outer})`);
+    assert(Math.abs(belt.meanRadius - mid) < 1.5, `belt radius is not evenly spread (mean ${belt.meanRadius.toFixed(2)} vs midpoint ${mid})`);
+  }
 });
 
 check('contrast', async ({ page }) => {
@@ -362,29 +393,17 @@ check('motion', async ({ page }) => {
   const frames = await page.evaluate(() => window.__thg?.frames ?? 0);
   assert(frames > 0, 'heart never rendered a frame');
 
-  // the scene must visibly move on its own: the camera has to orbit, and the
+  // the scene must visibly move on its own: the planet spins, and the
   // downscaled frames must differ (structure change, not per-particle jitter)
-  const az0 = await page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
-  assert(az0 !== null, 'OrbitControls not exposed on window.__thg');
+  const spin0 = await page.evaluate(() => window.__thg?.system?.rotation?.y ?? null);
+  assert(spin0 !== null, 'scene group not exposed on window.__thg');
   const shotA = await page.screenshot();
   await page.waitForTimeout(2000);
   const shotB = await page.screenshot();
-  const az1 = await page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
-  assert(Math.abs(az1 - az0) > 0.01, `camera did not orbit on its own (azimuth ${az0} -> ${az1})`);
+  const spin1 = await page.evaluate(() => window.__thg?.system?.rotation?.y ?? null);
+  assert(Math.abs(spin1 - spin0) > 0.01, `the planet does not spin (rotation.y ${spin0} -> ${spin1})`);
 
-  const coarse = await page.evaluate(async ([a, c]) => {
-    const load = async (s) => { const i = new Image(); i.src = 'data:image/png;base64,' + s; await i.decode(); return i; };
-    const draw = async (img) => {
-      const cv = document.createElement('canvas'); cv.width = 32; cv.height = 20;
-      const g = cv.getContext('2d', { willReadFrequently: true });
-      g.drawImage(img, 0, 0, 32, 20);
-      return g.getImageData(0, 0, 32, 20).data;
-    };
-    const da = await draw(await load(a)); const dc = await draw(await load(c));
-    let sum = 0;
-    for (let i = 0; i < da.length; i += 4) sum += Math.abs(da[i] - dc[i]) + Math.abs(da[i + 1] - dc[i + 1]) + Math.abs(da[i + 2] - dc[i + 2]);
-    return sum / (da.length / 4) / 3;
-  }, [shotA.toString('base64'), shotB.toString('base64')]);
+  const coarse = await coarseDiff(page, shotA, shotB);
   // a frozen scene measures ~2/255 on this downscale, a living one ~4-8
   assert(coarse > 3, `scene looks static: downscaled frame diff ${coarse.toFixed(2)}/255 (need > 3)`);
 
@@ -516,6 +535,38 @@ check('tier', async ({ page }) => {
   if (chromium) assert(r.tier === 'refract', `chromium should get tier refract, got ${r.tier}`);
   else assert(r.tier === 'blur' || r.tier === 'solid', `non-chromium must not use refract, got ${r.tier}`);
   return { tier: r.tier };
+});
+
+check('reduced-input', async () => {
+  // reduced motion = no AUTOMATIC motion, but the scene must still react to input
+  await reduced.waitForTimeout(800);
+  const cam0 = await reduced.evaluate(() => window.__thg?.camera?.position?.toArray?.() ?? null);
+  const shot0 = await reduced.screenshot();
+  await reduced.mouse.move(900, 450);
+  await reduced.mouse.down();
+  for (let i = 1; i <= 10; i++) { await reduced.mouse.move(900 - i * 40, 450 + i * 6, { steps: 2 }); await reduced.waitForTimeout(16); }
+  await reduced.mouse.up();
+  await reduced.waitForTimeout(300);
+  const cam1 = await reduced.evaluate(() => window.__thg?.camera?.position?.toArray?.() ?? null);
+  const shot1 = await reduced.screenshot();
+  assert(cam0 && cam1 && cam0.join() !== cam1.join(), 'reduced-motion: drag did not move the camera');
+  const changed = await coarseDiff(reduced, shot0, shot1);
+  assert(changed > 0.5, `reduced-motion: canvas never repaints (frame diff ${changed.toFixed(2)}/255) - the scene looks frozen`);
+});
+
+check('zoom', async ({ page }) => {
+  const distance = () => page.evaluate(() => window.__thg?.controls?.getDistance?.() ?? null);
+  const d0 = await distance();
+  await page.mouse.move(900, 450);
+  await page.mouse.wheel(0, -600);
+  await page.waitForTimeout(500);
+  const d1 = await distance();
+  assert(d0 !== null && d1 !== null, 'controls.getDistance() unavailable');
+  assert(Math.abs(d1 - d0) > 1, `mouse wheel did not zoom the scene (distance ${d0} -> ${d1})`);
+  await page.mouse.wheel(0, 1200);
+  await page.waitForTimeout(500);
+  const d2 = await distance();
+  assert(d2 > d1, `zoom out did not increase the distance (${d1} -> ${d2})`);
 });
 
 check('console', async () => {

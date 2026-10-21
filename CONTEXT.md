@@ -48,4 +48,7 @@ Bản gốc (2022–2026-03) là quà 8/3, lấy từ CodePen `Wink196/pen/bGKgO
 | D7 | `three` import **động** (`await import('three')`) | CDN chết thì chỉ mất heart, typewriter + nhạc vẫn chạy | review pass |
 | D8 | Heart fallback hiện mặc định, chỉ ẩn khi WebGL OK | Không JS vẫn thấy tim + đọc được lời nhắn | review pass |
 | D9 | Bảng chúc mừng nằm 1 góc, cảnh 3D (tim + vành) là nhân vật chính | Feedback: card ở giữa che hết cảnh, làm mất ý nghĩa của scene 3D | feedback 2026-10-21 |
-| D10 | Chuyển động phải **thấy được**: camera tự quay + vành có sóng + hạt nhảy nhanh hơn; card `pointer-events:none` | Mọi chuyển động trước đó là no-op về mặt thị giác (tim đối xứng Y, vành tròn đều, hạt chu kỳ 13–125s) → cảnh đứng im; card nuốt kéo chuột | debug 2026-10-21 |
+| D10 | Chuyển động phải **thấy được**: gradient màu bất đối xứng + hạt nhảy nhanh hơn; card `pointer-events:none` | Mọi chuyển động trước đó là no-op về mặt thị giác (tim đối xứng Y, vành tròn đều, hạt chu kỳ 13–125s) → cảnh đứng im; card nuốt kéo chuột | debug 2026-10-21 |
+| D11 | Phần 3D quay lại theo bản 8/3: 200k tim + 100k vành, camera (0,4,21), zoom bật, xoay `t*0.05` | So sánh với bản gốc làm chuẩn; vành dùng phân bố **stratified** để tròn, cách đều, lỗ sạch | feedback 2026-10-21 |
+| D12 | Chromatic aberration là **opt-in** (`?ca=1`), mặc định 1 pass + viền sắc màu bằng CSS | Đo: 3 pass CA = 47fps, 1 pass = 139fps trên nền particle chạy | perf 2026-10-21 |
+| D13 | Reduce Motion = không tự chuyển động, **không** phải đóng băng | Bản cũ render 1 frame rồi dừng → kéo/zoom không thấy gì; giờ canvas vẽ lại theo event controls | debug 2026-10-21 |

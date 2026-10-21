@@ -98,7 +98,8 @@ replayBtn.addEventListener('click', () => {
 const canvas = document.getElementById('bg-heart');
 const fallback = document.getElementById('heart-fallback');
 const isSmall = () => window.innerWidth < 640;
-const PARTICLES = () => (isSmall() ? 45000 : 120000);
+// the glass filter re-samples the backdrop every frame, so the pixel budget matters
+const PIXEL_RATIO = () => Math.min(devicePixelRatio, isSmall() ? 1.25 : 1.5);
 
 async function startHeart() {
   if (!canvas) return;
@@ -125,30 +126,40 @@ async function startHeart() {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
-  camera.position.set(0, 6, 31);
+  camera.position.set(0, 4, 21);
 
-  renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall() ? 1.5 : 2));
+  renderer.setPixelRatio(PIXEL_RATIO());
   renderer.setSize(innerWidth, innerHeight);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.enablePan = false;
-  controls.enableZoom = false;
-  // the scene has to breathe on its own — a still frame reads as "broken"
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.6;
-  controls.target.set(0, 0, 0);
+  // zoom stays on, like the 8/3 version
+  controls.enableZoom = true;
+  controls.minDistance = 12;
+  controls.maxDistance = 120;
+  // the camera stays put — the *planet* spins, like a body with a ring belt
+  controls.autoRotate = false;
 
   const uniforms = { time: { value: 0 } };
   const sizes = [];
   const shift = [];
+  const pushShift = () => {
+    shift.push(
+      Math.random() * Math.PI,
+      Math.random() * Math.PI * 2,
+      (Math.random() * 0.9 + 0.1) * Math.PI * 0.1,
+      Math.random() * 0.9 + 0.1,
+    );
+  };
 
   // Sample by area so the heart does not clump on the vertical axis.
   function sampleHeartT() {
     for (;;) {
       const t = Math.random() * Math.PI * 2;
       const radialRatio = Math.abs(Math.pow(Math.sin(t), 3));
-      if (Math.random() < THREE.MathUtils.lerp(0.03, 1, radialRatio)) return t;
+      const keepChance = THREE.MathUtils.lerp(0.03, 1, radialRatio);
+      if (Math.random() < keepChance) return t;
     }
   }
 
@@ -161,22 +172,50 @@ async function startHeart() {
     const yEdge = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
     const x = xEdge * fill * scale;
     const y = yEdge * fill * scale * 1.25 + (Math.random() - 0.5) * 0.1;
-    const z = (Math.random() - 0.5) * (1.2 + (1 - fill) * 6.0);
+    const depth = 1.2 + (1 - fill) * 6.0;
+    const z = (Math.random() - 0.5) * depth;
     return new THREE.Vector3(x, y, z);
   }
 
-  const count = PARTICLES();
-  const points = new Array(count);
-  for (let i = 0; i < count; i++) {
+  // Heart + belt live in ONE point cloud (as in the 8/3 version), so the whole
+  // body turns like a planet with a ring belt.
+  const heartCount = isSmall() ? 60000 : 200000;
+  const beltCount = isSmall() ? 30000 : 100000;
+  const points = new Array(heartCount + beltCount);
+
+  for (let i = 0; i < heartCount; i++) {
     points[i] = heartPoint();
     sizes.push(Math.random() * 1.5 + 0.5);
-    shift.push(
-      Math.random() * Math.PI,
-      Math.random() * Math.PI * 2,
-      (Math.random() * 0.9 + 0.1) * Math.PI * 0.1,
-      Math.random() * 0.9 + 0.1,
-    );
+    pushShift();
   }
+
+  // The belt: an evenly spaced annulus (10 -> 40 units) with a clean round hole
+  // around the heart. Radius and angle are both stratified and then shuffled,
+  // so the band has no clumps and no gaps.
+  const BELT_INNER = 10;
+  const BELT_OUTER = 40;
+  const radii = new Float64Array(beltCount);
+  const angles = new Float64Array(beltCount);
+  for (let i = 0; i < beltCount; i++) {
+    radii[i] = BELT_INNER + (BELT_OUTER - BELT_INNER) * ((i + Math.random()) / beltCount);
+    angles[i] = Math.PI * 2 * ((i + Math.random()) / beltCount);
+  }
+  for (let i = beltCount - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = angles[i]; angles[i] = angles[j]; angles[j] = tmp;
+  }
+  for (let i = 0; i < beltCount; i++) {
+    const radius = radii[i];
+    const theta = angles[i];
+    points[heartCount + i] = new THREE.Vector3(
+      Math.cos(theta) * radius,
+      (Math.random() - 0.5) * 3,
+      Math.sin(theta) * radius,
+    );
+    sizes.push(Math.random() * 1.5 + 0.5);
+    pushShift();
+  }
+
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   geometry.setAttribute('sizes', new THREE.Float32BufferAttribute(sizes, 1));
   geometry.setAttribute('shift', new THREE.Float32BufferAttribute(shift, 4));
@@ -199,9 +238,13 @@ async function startHeart() {
       ).replace(
         '#include <color_vertex>',
         `#include <color_vertex>
-          float d = length(abs(position) / vec3(40., 10., 40.));
-          d = clamp(d, 0., 1.);
-          vColor = mix(vec3(227., 155., 0.), vec3(100., 50., 255.), d) / 255.;
+          // A rotationally symmetric cloud is invisible while it spins, so the
+          // colour carries an asymmetric sweep along the object's X axis: the
+          // planet spin is readable even though the shape is symmetric.
+          float radial = clamp(length(abs(position) / vec3(20., 12., 40.)), 0.0, 1.0);
+          float alongX = clamp(position.x / 9.0 * 0.5 + 0.5, 0.0, 1.0);
+          float grad = clamp(radial * 0.4 + alongX * 0.6, 0.0, 1.0);
+          vColor = mix(vec3(255., 196., 96.), vec3(146., 92., 255.), grad) / 255.;
         `,
       ).replace(
         '#include <begin_vertex>',
@@ -226,54 +269,18 @@ async function startHeart() {
     },
   });
 
-  const cloud = new THREE.Points(geometry, material);
-  cloud.rotation.order = 'ZYX';
-
-  // The ring: an annulus of particles around the heart, like planetary rings.
-  const ringCount = isSmall() ? 22000 : 55000;
-  const ringPoints = new Array(ringCount);
-  const ringSizes = [];
-  const ringShift = [];
-  const RING_INNER = 9.5;
-  const RING_OUTER = 21;
-  for (let i = 0; i < ringCount; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    // a wavy, lobed ring: a perfectly uniform annulus looks identical when it
-    // spins, which made the whole scene read as "frozen"
-    const wave = 0.9 * Math.sin(3 * theta) + 0.35 * Math.sin(7 * theta + 1.1);
-    const radius = RING_INNER + (RING_OUTER - RING_INNER) * Math.random() + wave;
-    ringPoints[i] = new THREE.Vector3(Math.cos(theta) * radius, (Math.random() - 0.5) * 1.6, Math.sin(theta) * radius);
-    const lobe = 0.55 + 0.8 * Math.abs(Math.sin(2 * theta + 0.6));
-    ringSizes.push((Math.random() * 1.2 + 0.45) * lobe);
-    ringShift.push(
-      Math.random() * Math.PI,
-      Math.random() * Math.PI * 2,
-      (Math.random() * 0.9 + 0.1) * Math.PI * 0.06,
-      Math.random() * 0.5 + 0.15,
-    );
-  }
-  const ringGeometry = new THREE.BufferGeometry().setFromPoints(ringPoints);
-  ringGeometry.setAttribute('sizes', new THREE.Float32BufferAttribute(ringSizes, 1));
-  ringGeometry.setAttribute('shift', new THREE.Float32BufferAttribute(ringShift, 4));
-  const ring = new THREE.Points(ringGeometry, material);
-  // pivot carries the tilt, the ring itself spins around its own normal
-  const ringPivot = new THREE.Group();
-  ringPivot.rotation.x = -0.52;
-  ringPivot.rotation.z = 0.08;
-  ringPivot.add(ring);
-
-  const system = new THREE.Group();
-  system.add(cloud, ringPivot);
-  system.position.set(isSmall() ? 0 : 2.4, isSmall() ? -3.4 : 0, 0);
-  scene.add(system);
+  const planet = new THREE.Points(geometry, material);
+  planet.rotation.order = 'ZYX';
+  planet.position.set(isSmall() ? 0 : 2.2, isSmall() ? -2.5 : 0, 0);
+  scene.add(planet);
+  const system = planet; // the whole body turns as one
 
   const frameCamera = () => {
     const aspect = innerWidth / innerHeight;
-    const distance = aspect < 0.8 ? 52 : aspect < 1.3 ? 40 : 31;
-    // on a narrow screen look down a bit more so the ring reads as an ellipse
-    const height = aspect < 0.8 ? 17 : 6;
-    controls.target.set(system.position.x, 0, 0);
-    camera.position.set(system.position.x, height, distance);
+    // 8/3 framing: camera at (0, 4, 21); pull back on a narrow screen
+    const distance = aspect < 0.8 ? 34 : 21;
+    controls.target.set(planet.position.x, 0, 0);
+    camera.position.set(planet.position.x, 4, distance);
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
     controls.update();
@@ -281,20 +288,18 @@ async function startHeart() {
   frameCamera();
 
   const clock = new THREE.Clock();
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
 
   let elapsed = 0;
   const render = (dt = 0.016) => {
     elapsed += dt;
     const t = elapsed * 0.5;
-    // the particle wobble used to run at 0.05-0.49 rad/s (13-125s per cycle),
-    // which is invisible to the eye — spin it up so the cloud actually dances
-    uniforms.time.value = t * Math.PI * 5;
-    system.rotation.y = t * 0.12;
-    system.rotation.x = Math.sin(elapsed * 0.17) * 0.035;
-    system.rotation.z = Math.cos(elapsed * 0.13) * 0.03;
-    ring.rotation.y = t * 0.35;
-    ringPivot.rotation.z = 0.08 + Math.sin(elapsed * 0.45) * 0.1;
+    // 8/3 pacing: the cloud wobbles on its own and the whole body turns like a
+    // planet. The particle clock runs 2x the original so the dance is readable,
+    // the body keeps the original's slow spin.
+    uniforms.time.value = t * Math.PI * 2;
+    system.rotation.y = t * 0.05;
+    system.rotation.x = 0;
     renderer.render(scene, camera);
     window.__thg.frames = (window.__thg.frames ?? 0) + 1;
   };
@@ -308,21 +313,29 @@ async function startHeart() {
     render(dt);
   };
 
-  if (reduced.matches) {
-    render();
-  } else {
-    renderer.setAnimationLoop(loop);
-  }
+  // Reduced motion means "no automatic motion", NOT "frozen": dragging and zooming
+  // must still repaint the canvas, otherwise the scene looks broken.
+  const applyMotionMode = () => {
+    if (reducedQuery.matches) {
+      renderer.setAnimationLoop(null);
+      render(0);
+    } else {
+      last = performance.now();
+      renderer.setAnimationLoop(loop);
+    }
+  };
+  reducedQuery.addEventListener('change', applyMotionMode);
+  controls.addEventListener('change', () => { if (reducedQuery.matches) render(0); });
+  applyMotionMode();
 
   const onVisibility = () => {
-    if (reduced.matches) return;
     if (document.hidden) renderer.setAnimationLoop(null);
-    else renderer.setAnimationLoop(loop);
+    else applyMotionMode();
   };
   document.addEventListener('visibilitychange', onVisibility);
 
   const onResize = () => {
-    renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall() ? 1.5 : 2));
+    renderer.setPixelRatio(PIXEL_RATIO());
     renderer.setSize(innerWidth, innerHeight);
     frameCamera();
   };
@@ -334,19 +347,27 @@ async function startHeart() {
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('resize', onResize);
     geometry.dispose();
-    ringGeometry.dispose();
     material.dispose();
     renderer.dispose();
   };
   window.addEventListener('pagehide', onPageHide);
 
-  window.__thg.heartPoints = count;
+  window.__thg.heartPoints = heartCount;
+  window.__thg.beltPoints = beltCount;
+  window.__thg.belt = {
+    inner: BELT_INNER,
+    outer: BELT_OUTER,
+    meanRadius: (() => {
+      let sum = 0;
+      for (let i = 0; i < beltCount; i++) sum += radii[i];
+      return sum / beltCount;
+    })(),
+  };
   window.__thg.camera = camera;
   window.__thg.controls = controls;
   window.__thg.canvas = canvas;
   window.__thg.system = system;
-  window.__thg.ring = ring;
-  window.__thg.cloud = cloud;
+  window.__thg.planet = planet;
 }
 
 window.__thg = {

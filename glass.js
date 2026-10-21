@@ -131,6 +131,10 @@ const DEFAULTS = {
   interactive: true,
   pressable: false,
   filter: true,
+  // chromatic aberration = 3 displacement passes over a live animated backdrop:
+  // it costs ~3x the frame time, so it is opt-in (?ca=1) and the rim fringe is
+  // faked in CSS instead
+  ca: false,
   tier: 'auto',
 };
 
@@ -197,15 +201,19 @@ export function attach(el, options = {}) {
     image.setAttributeNS(XLINK_NS, 'xlink:href', map.url);
     filter.appendChild(image);
 
-    // Displace the backdrop through the map, then frost it, then push colour.
+    // Displace the backdrop through the map, then push colour.
     // Chromatic aberration: three passes at slightly different strength, one per channel.
+    // `ca: false` drops to a single pass — three displacement samples over a live
+    // animated backdrop cost ~3x the frame time.
     const pxScale = displacementScale(scale, bezel);
     const chromaRatio = chroma / 100;
-    const passes = [
-      { factor: 1, result: 'base' },
-      { factor: 1 + chromaRatio, result: 'warm' },
-      { factor: 1 - chromaRatio, result: 'cool' },
-    ];
+    const passes = opts.ca === false
+      ? [{ factor: 1, result: 'base' }]
+      : [
+        { factor: 1, result: 'base' },
+        { factor: 1 + chromaRatio, result: 'warm' },
+        { factor: 1 - chromaRatio, result: 'cool' },
+      ];
     for (const p of passes) {
       filter.appendChild(svgEl('feDisplacementMap', {
         in: 'SourceGraphic', in2: 'map', scale: pxScale * p.factor,
@@ -213,16 +221,20 @@ export function attach(el, options = {}) {
       }));
     }
 
-    const base = svgEl('feColorMatrix', { type: 'matrix', values: channelMatrix('R'), in: 'base', result: 'r' });
-    const warm = svgEl('feColorMatrix', { type: 'matrix', values: channelMatrix('G'), in: 'warm', result: 'g' });
-    const cool = svgEl('feColorMatrix', { type: 'matrix', values: channelMatrix('B'), in: 'cool', result: 'b' });
-    filter.append(base, warm, cool);
+    if (passes.length === 3) {
+      const base = svgEl('feColorMatrix', { type: 'matrix', values: channelMatrix('R'), in: 'base', result: 'r' });
+      const warm = svgEl('feColorMatrix', { type: 'matrix', values: channelMatrix('G'), in: 'warm', result: 'g' });
+      const cool = svgEl('feColorMatrix', { type: 'matrix', values: channelMatrix('B'), in: 'cool', result: 'b' });
+      filter.append(base, warm, cool);
+      const rg = svgEl('feBlend', { in: 'r', in2: 'g', mode: 'screen', result: 'rg' });
+      const rgb = svgEl('feBlend', { in: 'rg', in2: 'b', mode: 'screen', result: 'rgb' });
+      filter.append(rg, rgb);
+      filter.appendChild(svgEl('feGaussianBlur', { in: 'rgb', stdDeviation: blur, result: 'frost' }));
+    } else {
+      // single pass: frost stays in CSS, the filter only bends the pixels
+      filter.appendChild(svgEl('feGaussianBlur', { in: 'base', stdDeviation: blur, result: 'frost' }));
+    }
 
-    const rg = svgEl('feBlend', { in: 'r', in2: 'g', mode: 'screen', result: 'rg' });
-    const rgb = svgEl('feBlend', { in: 'rg', in2: 'b', mode: 'screen', result: 'rgb' });
-    filter.append(rg, rgb);
-
-    filter.appendChild(svgEl('feGaussianBlur', { in: 'rgb', stdDeviation: blur, result: 'frost' }));
     filter.appendChild(svgEl('feColorMatrix', { in: 'frost', type: 'saturate', values: saturate }));
     const lift = svgEl('feComponentTransfer', { result: 'lit' });
     lift.appendChild(svgEl('feFuncR', { type: 'linear', slope: brightness, intercept: 0 }));
@@ -297,11 +309,17 @@ export function attach(el, options = {}) {
 export const LiquidGlass = { attach, detectTier };
 if (typeof window !== 'undefined') window.LiquidGlass = LiquidGlass;
 
-/* Auto-attach every [data-glass] element; each may carry its own options. */
+/* Auto-attach every [data-glass] element; each may carry its own options.
+   URL overrides: ?ca=0 (single displacement pass), ?frost=0 (no blur in the filter). */
 function boot() {
+  const params = new URLSearchParams(location.search);
+  const overrides = {};
+  if (params.get('ca') === '1') overrides.ca = true;
+  if (params.get('ca') === '0') overrides.ca = false;
+  if (params.get('frost') === '0') overrides.blur = 0;
   for (const el of document.querySelectorAll('[data-glass]')) {
     const raw = el.dataset.glass === '' ? {} : JSON.parse(el.dataset.glass);
-    attach(el, raw);
+    attach(el, { ...overrides, ...raw });
   }
 }
 if (document.readyState === 'loading') {

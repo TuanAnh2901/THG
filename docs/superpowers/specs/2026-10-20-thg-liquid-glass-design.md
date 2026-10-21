@@ -103,6 +103,7 @@ Cơ chế (theo kỹ thuật đã đọc từ `sohumsuthar/liquid-glass`, `deepi
    - `solid`: `prefers-reduced-transparency: reduce` hoặc thiếu `backdrop-filter` → nền đục, vẫn giữ hình dạng + shadow.
 5. **Đầy đủ thuộc tính**: specular hai-tone (hairline sáng trên+dưới, tối trái+phải), **physics** (press → `scale(.965)` + rim energize; hover → specular bám con trỏ qua CSS var `--lg-x/--lg-y`), **shimmer** 360° quét khi bấm, `corner-shape: squircle` (Chrome 139+, progressive), ambient tint, glow viền trong.
 6. **Perf**: map sinh 1 lần / element, regenerate khi resize (ResizeObserver + debounce 150ms); hover/press chỉ set CSS var → **không** JS per-frame; không tạo thêm WebGL context. Specular bám con trỏ hiện bằng `background-image: radial-gradient(... at calc(var(--lg-x)*100%) ...)` trên chính element, nên không tốn thêm lớp DOM.
+7. **Chromatic aberration là tuỳ chọn** (`?ca=1`): 3 pass `feDisplacementMap` trên nền đang chạy tốn **~3× frame time** (đo: 47 fps vs 139 fps). Mặc định 1 pass + viền sắc màu giả bằng `inset` box-shadow (rẻ, không tốn GPU).
 
 ### 4.2 Tokens (`style.css`)
 
@@ -122,29 +123,38 @@ Layout: `body` grid 1 cột, card `max-width:560px`, `margin:auto`, `padding:cla
 
 **Bố cục cuối (sau feedback):** bảng chúc mừng **không được ở giữa** — nó là một panel nhỏ nằm 1 góc (desktop: góc trên-trái 24px, rộng ≤ 380px; mobile: trên, full width trừ 12px mỗi bên; landscape: góc trên-trái + dock nhảy lên góc trên-phải). Cảnh 3D là nhân vật chính, card chỉ là overlay nhỏ có thể đọc. Hệ particle (tim + vành) được dời sang phải trên desktop để không bị card che.
 
-### 4.3 Heart + ring (Three.js)
+### 4.3 Heart + belt (Three.js) — dựa trên bản 8/3
 
-Cảnh là **một hệ 3D**: trái tim hạt ở giữa, quanh nó là **vành hạt tròn nghiêng** (như vành hành tinh), cả nhóm xoay chậm quanh trục Y, vành tự quay quanh trục riêng của nó. Kéo chuột để orbit (không zoom, không pan).
+Cảnh là **một hệ 3D**: trái tim hạt ở giữa, quanh nó là **vành đai hạt** (như vành hành tinh), cả nhóm xoay chậm quanh trục Y như một hành tinh. Tim + vành nằm trong **cùng một đám hạt** (đúng bản 8/3) nên cả khối xoay như một vật thể. Kéo chuột để orbit, lăn chuột để zoom (bản 8/3 có zoom, đã bật lại).
 
-**Cảnh phải chuyển động thấy được** (đã sửa sau phản hồi: mọi chuyển động trước đó đều là *no-op* về mặt thị giác):
+**Số liệu (đã đo, không đoán):**
+
+| | Bản 8/3 | Bản hiện tại | Ghi chú |
+|---|---|---|---|
+| Hạt tim | 200.000 | 200.000 (mobile 60k) | giữ nguyên bản gốc |
+| Hạt vành | 100.000 (bán kính 10→40, `rand^1.5` dồn vào trong) | 100.000 (mobile 30k) | **phân bố stratified**: bán kính + góc đều, lỗ tròn sạch, không vón cục |
+| Camera | `(0, 4, 21)`, FOV 60 | `(0, 4, 21)`, FOV 60 (mobile lùi 34) | giữ nguyên khung hình gốc |
+| Controls | damping, không pan, **có zoom** | damping, không pan, **có zoom** (12–120) | bản mình tắt nhầm → đã bật lại |
+| Xoay cả khối | `rotation.y = t*0.05` | `rotation.y = t*0.05` | giữ tốc độ gốc |
+| Nhịp hạt | `time = t*PI` | `time = t*PI*2` | ×2 để vũ trụ nhảy thấy được |
+| Màu | vàng→tím theo bán kính | vàng→tím theo bán kính **+ quét bất đối xứng theo X** | tim đối xứng trục Y nên xoay không thấy; quét màu làm cái xoay đọc được |
+| DPR | không set (= 1) | cap 1.5 (mobile 1.25) | |
+
+**Chuyển động phải thấy được** (đã sửa sau phản hồi: mọi chuyển động trước đó đều là *no-op* về mặt thị giác):
 
 | Chuyển động | Vì sao trước đó không thấy | Cách sửa |
 |---|---|---|
-| Camera tự quanh | Không bật → azimuth đứng yên | `controls.autoRotate = true`, speed 0.6 (~3.5°/s) |
-| Vành tự quay | Vành tròn **đều** → quay không đổi hình | Vành có sóng (`radius += 0.9·sin3θ + 0.35·sin7θ`) + mật độ theo góc → quay là thấy |
-| Hạt rung | `shift.z·t` chạy 0.05–0.49 rad/s → chu kỳ **13–125s** | Nhân thời gian shader ×5 → hạt nhảy rõ |
-| Cả hệ nghiêng nhẹ | Xoay Y là no-op (tim đối xứng Y) | Thêm `rotation.x/z` dao động nhẹ + `controls.update(dt)` không phụ thuộc FPS |
+| Xoay cả hệ | Tim đối xứng trục Y, xoay Y không đổi hình (đo: 1.9/255) | Gradient màu bất đối xứng theo trục X → cái xoay đọc được |
+| Vành tự quay | Vành tròn **đều** → quay không đổi hình (đo: 1.3/255) | Bỏ sóng/lobe (yêu cầu "vành tròn cách đều"), thay bằng gradient màu |
+| Hạt rung | `shift.z*t` chạy 0.05–0.49 rad/s → chu kỳ 13–125s | Nhân thời gian shader ×2 |
+| Camera tự quay | Bật thì cảnh nghiêng, vành đai thành đường chéo | **Tắt** — camera đứng yên, hành tinh tự xoay |
 
-- Pin `three@0.186.1` (latest ổn định tại thời điểm viết spec) qua importmap + esm CDN, ví dụ
-  `https://esm.sh/three@0.186.1` và `https://esm.sh/three@0.186.1/examples/jsm/controls/OrbitControls.js` (bỏ `cdn.skypack.dev` 0.136); `OrbitControls` đúng version.
-- **Import động** (`await import('three')` trong `startHeart()`): CDN chết thì chỉ mất heart, typewriter + nhạc + dock vẫn chạy. Khi đó fallback CSS heart hiện sẵn (mặc định visible, chỉ ẩn khi WebGL khởi tạo được).
-- DPR cap: `min(devicePixelRatio, 2)` desktop, `1.5` mobile.
-- Hạt: tim 120k desktop / 45k mobile; vành 55k desktop / 22k mobile (bán kính 9.5 → 21, nghiêng −0.52 rad, độ dày ±0.8). **Vành là một phần của bản sắc** (bản gốc có dải hạt vòng quanh tim) — không được xoá.
-- Camera tự đóng khung theo tỉ lệ: khoảng cách 31 (desktop) / 40 (tablet) / 52 (dọc), nhìn từ cao hơn trên màn hình hẹp để vành thấy rõ là hình elip.
-- **Bảng chúc mừng không được làm "lồng" (cage)**: `.glass { pointer-events: none }` → kéo trên card vẫn xoay cảnh; specular bám con trỏ của card lấy từ `pointermove` toàn cục.
-- Pause render khi `document.hidden`; `dispose()` khi `pagehide` (trừ khi `event.persisted` — bfcache).
+- Pin `three@0.186.1` qua importmap + esm CDN (bỏ `cdn.skypack.dev` 0.136).
+- **Import động** (`await import('three')`): CDN chết thì chỉ mất heart, typewriter + nhạc + dock vẫn chạy; fallback CSS heart hiện sẵn.
+- **Bảng chúc mừng không được làm "lồng" (cage)**: `.glass { pointer-events: none }` → kéo trên card vẫn xoay cảnh; specular bám con trỏ lấy từ `pointermove` toàn cục.
+- **Reduce Motion = không có chuyển động tự động, KHÔNG phải đóng băng**: canvas phải vẽ lại khi người dùng kéo/zoom (`controls` event → render). Bản cũ render đúng 1 frame rồi dừng → kéo cũng không thấy gì.
+- Pause render khi `document.hidden`; `dispose()` khi `pagehide` (trừ `event.persisted`).
 - WebGL fail → fallback: CSS radial-gradient heart + nội dung vẫn hiện.
-- Bỏ `console.clear()`, `console.log(shader)`; bỏ jQuery `$()`; bỏ `innerHTML` trong typewriter (dùng `textContent` + node `<br>`).
 
 ### 4.4 A11y & motion
 
