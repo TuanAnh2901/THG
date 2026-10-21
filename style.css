@@ -115,3 +115,41 @@ body{
   .glass{ transition:none; }
   .glass.is-shimmer::after{ animation:none; }
 }
+
+/* screen-reader only copy of the message (the visible one is typed out) */
+.sr-only{
+  position:absolute;
+  width:1px; height:1px;
+  padding:0; margin:-1px;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+  white-space:nowrap;
+  border:0;
+}
+
+/* step 6: phones — the panel takes the top, the button moves out of its way */
+@media (max-width: 640px){
+  .glass{
+    width:calc(100% - 24px);
+    left:12px;
+    top:12px;
+    padding:14px 16px 16px;
+    border-radius:20px;
+  }
+  .container{
+    width:calc(100% - 24px);
+  }
+  .music-toggle-wrapper{
+    top:auto;
+    bottom:16px;
+    right:16px;
+    flex-direction:row;
+  }
+  .music-label{
+    display:none;
+  }
+  .music-toggle{
+    width:54px;
+    height:54px;
+  }
+}

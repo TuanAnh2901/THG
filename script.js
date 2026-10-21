@@ -38,6 +38,8 @@ const updateMusicButton = () => {
   } else {
     musicToggle.textContent = "⏸";
   }
+  musicToggle.setAttribute("aria-pressed", String(!bgMusic.paused));
+  musicToggle.setAttribute("aria-label", bgMusic.paused ? "Bật nhạc" : "Tắt nhạc");
 };
 musicToggle.addEventListener("click", () => {
   if (bgMusic.paused) {
@@ -49,6 +51,7 @@ musicToggle.addEventListener("click", () => {
 });
 bgMusic.addEventListener("play", updateMusicButton);
 bgMusic.addEventListener("pause", updateMusicButton);
+updateMusicButton();
 
 let scene = new THREE.Scene();
 scene.background = new THREE.Color(0x160016);
@@ -56,10 +59,19 @@ let camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 1000);
 camera.position.set(0, 4, 21);
 let renderer = new THREE.WebGLRenderer();
 renderer.setSize(innerWidth, innerHeight);
+renderer.domElement.setAttribute("aria-hidden", "true");
 document.body.appendChild(renderer.domElement);
-window.addEventListener("resize", event => {
-  camera.aspect = innerWidth / innerHeight;
+// On a narrow screen the heart is wider than the frame, so the camera steps back.
+// Desktop keeps the original (0, 4, 21) framing.
+function frameCamera() {
+  const aspect = innerWidth / innerHeight;
+  camera.aspect = aspect;
+  camera.position.set(0, 4, Math.max(21, 17.3 / aspect));
   camera.updateProjectionMatrix();
+}
+frameCamera();
+window.addEventListener("resize", event => {
+  frameCamera();
   renderer.setSize(innerWidth, innerHeight);
 })
 
