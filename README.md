@@ -4,7 +4,7 @@ Trang quà tặng: trái tim hạt 3D (Three.js) + lời chúc trong một panel
 Static site thuần: **không build step, không phụ thuộc runtime** (chỉ Three.js từ CDN).
 
 - Tim hạt + vành đai: bản gốc 8/3 (`e26e124`), **giữ nguyên** màu và chuyển động.
-- Panel kính: `glass.js` — Canvas sinh displacement map từ SDF bo tròn → SVG `feDisplacementMap` → `backdrop-filter: url(#…)`.
+- Panel kính: `glass.js` — **khúc xạ theo định luật Snell** (thickness / bezel / IOR), displacement map vành bo tròn, specular map theo hướng sáng, giống hệt [demo Liquid Glass](https://liquid-glass-eta.vercel.app/).
 - Nút nhạc: một thấu kính tròn 60px, cùng vật liệu kính.
 
 ## Chạy local
@@ -40,5 +40,6 @@ Push vào `main` → workflow `.github/workflows/pages.yml` publish lên
 
 ## Credit
 
-Trái tim hạt: [CodePen `Wink196/pen/bGKgOYW`](https://codepen.io/Wink196/pen/bGKgOYW) (MIT) — xem `LICENSE.txt`.
-Kỹ thuật Liquid Glass tự viết cho repo này.
+- **Kính (Liquid Glass)**: `glass.js` port từ [archisvaze/liquid-glass](https://github.com/archisvaze/liquid-glass) (MIT © 2026 Archis Vaze) — khúc xạ theo định luật Snell, displacement map + specular map. Xem `NOTICE.md`.
+- **Trái tim hạt 3D**: giữ nguyên bản 8/3 — [CodePen `Wink196/pen/bGKgOYW`](https://codepen.io/Wink196/pen/bGKgOYW) (MIT). Xem `LICENSE.txt`.
+- Three.js r186 tải qua CDN (`esm.sh`).

@@ -29,25 +29,24 @@ body{
   font-family: cursive;
   white-space: nowrap;
 }
-/* step 5: the music button becomes a glass lens */
+/* step 5/8: the music button is a glass lens too */
 .music-toggle{
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  background-color: rgba(255, 255, 255, 0.1);
   color: white;
   font-size: 20px;
   cursor: pointer;
-  backdrop-filter: blur(6px) saturate(150%);
-  -webkit-backdrop-filter: blur(6px) saturate(150%);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -8px 16px -10px rgba(0, 0, 0, 0.5);
-  transition: background 0.3s, transform 0.18s cubic-bezier(.34, 1.56, .64, 1);
+  isolation: isolate;
+  box-shadow: inset 0 0 14px -4px rgba(255, 255, 255, 0.8), 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: background-color 0.3s, transform 0.18s cubic-bezier(.34, 1.56, .64, 1);
   position: relative;
   overflow: hidden;
 }
 .music-toggle:hover{
-  background: rgba(255, 255, 255, 0.18);
+  background-color: rgba(255, 255, 255, 0.16);
 }
 .music-toggle:active{
   transform: scale(0.94);
@@ -67,7 +66,8 @@ body{
   font-family:cursive;
 }
 
-/* step 2: glass panel, CSS only (no refraction yet) */
+/* step 8: real liquid glass material (physics refraction + specular),
+   structure follows https://github.com/archisvaze/liquid-glass (MIT) */
 .glass{
   box-sizing:border-box;
   top:20px;
@@ -76,40 +76,44 @@ body{
   height:auto;
   padding:18px 22px 20px;
   border-radius:26px;
-  background:rgba(255, 255, 255, 0.07);
-  border:1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter:blur(12px) saturate(150%);
-  -webkit-backdrop-filter:blur(12px) saturate(150%);
-  box-shadow:0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  isolation:isolate;
+  background-color:rgba(255, 255, 255, 0.06);
+  box-shadow:inset 0 0 20px -5px rgba(255, 255, 255, 0.85), 0 4px 24px rgba(0, 0, 0, 0.28);
   overflow:hidden;
   transition:transform .18s cubic-bezier(.34, 1.56, .64, 1);
 }
 
-/* step 4: physics — specular follows the pointer, shimmer sweeps on click */
+/* specular highlight that follows the pointer */
 .glass::before{
   content:"";
   position:absolute;
   inset:0;
+  z-index:1;
   border-radius:inherit;
   pointer-events:none;
-  background:radial-gradient(190px circle at calc(var(--lg-x, .5) * 100%) calc(var(--lg-y, .5) * 100%), rgba(255, 255, 255, .16), transparent 62%);
-  opacity:calc(.25 + .75 * var(--lg-hover, 0));
+  background-image:radial-gradient(190px circle at calc(var(--lg-x, .5) * 100%) calc(var(--lg-y, .5) * 100%), rgba(255, 255, 255, .16), transparent 62%);
+  opacity:calc(.2 + .8 * var(--lg-hover, 0));
   transition:opacity .25s ease;
 }
+.glass > *{ position:relative; z-index:2; }
+
+/* shimmer sweep on click */
+@property --lg-angle{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
+@property --lg-shimmer{ syntax:"<number>"; initial-value:0; inherits:false; }
 .glass::after{
   content:"";
   position:absolute;
   inset:-45%;
+  z-index:3;
   pointer-events:none;
-  background:conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, .28) 26deg, transparent 74deg);
-  opacity:0;
+  background-image:conic-gradient(from var(--lg-angle, 0deg), transparent 0deg, rgba(255, 255, 255, calc(var(--lg-shimmer, 0) * .28)) 26deg, transparent 74deg);
 }
 .glass.is-shimmer::after{
   animation:lg-shimmer .7s linear;
 }
 @keyframes lg-shimmer{
-  from{ transform:rotate(0deg); opacity:.9; }
-  to{ transform:rotate(360deg); opacity:0; }
+  from{ --lg-angle:0deg; --lg-shimmer:.9; }
+  to{ --lg-angle:360deg; --lg-shimmer:0; }
 }
 @media (prefers-reduced-motion: reduce){
   .glass{ transition:none; }

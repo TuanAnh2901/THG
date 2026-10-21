@@ -110,6 +110,9 @@ check('glass', async ({ page }) => {
   assert(r.filters >= 2, `expected 2 glass filters, got ${r.filters}`);
   assert(r.chain.includes('feDisplacementMap'), `filter chain misses feDisplacementMap (${r.chain.join(',')})`);
   assert(r.chain.includes('feGaussianBlur'), `filter chain misses the frost blur (${r.chain.join(',')})`);
+  assert(r.chain.includes('feComposite'), `filter chain misses the specular composite (${r.chain.join(',')})`);
+  assert(r.chain.includes('feComponentTransfer'), `filter chain misses the specular opacity (${r.chain.join(',')})`);
+  assert(r.chain.filter((t) => t === 'feImage').length === 2, `expected a displacement map + a specular map, got ${r.chain.join(',')}`);
   assert(r.srgb === 'sRGB', `color-interpolation-filters=${r.srgb}, must be sRGB`);
   assert(r.radius > 0, 'panel has no border radius');
 });
