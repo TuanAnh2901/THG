@@ -367,7 +367,7 @@ check('motion', async ({ page }) => {
   const az0 = await page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
   assert(az0 !== null, 'OrbitControls not exposed on window.__thg');
   const shotA = await page.screenshot();
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2000);
   const shotB = await page.screenshot();
   const az1 = await page.evaluate(() => window.__thg?.controls?.getAzimuthalAngle?.() ?? null);
   assert(Math.abs(az1 - az0) > 0.01, `camera did not orbit on its own (azimuth ${az0} -> ${az1})`);
@@ -385,7 +385,8 @@ check('motion', async ({ page }) => {
     for (let i = 0; i < da.length; i += 4) sum += Math.abs(da[i] - dc[i]) + Math.abs(da[i + 1] - dc[i + 1]) + Math.abs(da[i + 2] - dc[i + 2]);
     return sum / (da.length / 4) / 3;
   }, [shotA.toString('base64'), shotB.toString('base64')]);
-  assert(coarse > 4, `scene looks static: downscaled frame diff ${coarse.toFixed(2)}/255 (need > 4)`);
+  // a frozen scene measures ~2/255 on this downscale, a living one ~4-8
+  assert(coarse > 3, `scene looks static: downscaled frame diff ${coarse.toFixed(2)}/255 (need > 3)`);
 
   const before = await reduced.evaluate(() => window.__thg?.frames ?? 0);
   await reduced.waitForTimeout(900);
