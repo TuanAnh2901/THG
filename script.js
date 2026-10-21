@@ -190,7 +190,7 @@ renderer.setAnimationLoop(() => {
 
 var i = 0;
 //var txt1 = "Sagi yêu dấu...! <Nhưng không hề đầu gấu, <<Sagi babi...!  <Nhưng không hề chi li.  <<Sagi thân mến...! <Nhưng không thích chơi nến.     <<Sagi slay...     <Chắc là có straight =))))) <<Sagi Sagi...!   <Cái tên thật mê li, mê li....";
-var txt1 = "Chúc cô gái có 1 ngày 8/3 vui vẻ, xinh đẹp, hạnh phúc nhé  <❤️❤️❤️ <Luv you!";
+var txt1 = "Chúc cô gái có 1 ngày 20/10 vui vẻ, xinh đẹp, hạnh phúc nhé  <❤️❤️❤️ <Luv you!";
 var speed = 35;
 typeWriter();
 function typeWriter() {
