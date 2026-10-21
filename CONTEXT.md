@@ -52,3 +52,5 @@ Bản gốc (2022–2026-03) là quà 8/3, lấy từ CodePen `Wink196/pen/bGKgO
 | D11 | Phần 3D quay lại theo bản 8/3: 200k tim + 100k vành, camera (0,4,21), zoom bật, xoay `t*0.05` | So sánh với bản gốc làm chuẩn; vành dùng phân bố **stratified** để tròn, cách đều, lỗ sạch | feedback 2026-10-21 |
 | D12 | Chromatic aberration là **opt-in** (`?ca=1`), mặc định 1 pass + viền sắc màu bằng CSS | Đo: 3 pass CA = 47fps, 1 pass = 139fps trên nền particle chạy | perf 2026-10-21 |
 | D13 | Reduce Motion = không tự chuyển động, **không** phải đóng băng | Bản cũ render 1 frame rồi dừng → kéo/zoom không thấy gì; giờ canvas vẽ lại theo event controls | debug 2026-10-21 |
+| D14 | Palette additive: **mỗi màu một kênh = 0** (vàng 1/.72/0, tím .14/.05/1) + ranh giới sắc + nền CSS tối | Additive cộng dồn kênh → 3 kênh cùng chạm 1 là thành trắng; đo trước/sau: pixel trắng trong cảnh 7.6% → 0.1%, vàng thật (162,138,19) | color 2026-10-21 |
+| D15 | Tốc độ: hạt ×8, hành tinh `t*0.22` (0.11 rad/s ≈ 57s/vòng) | Bản trước: hành tinh 4 phút/vòng, hạt chu kỳ 13–125s → mắt thường coi là đứng im. Đo: tâm vùng vàng dịch 60px/6s | motion 2026-10-21 |

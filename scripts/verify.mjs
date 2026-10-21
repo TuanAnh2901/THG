@@ -569,6 +569,42 @@ check('zoom', async ({ page }) => {
   assert(d2 > d1, `zoom out did not increase the distance (${d1} -> ${d2})`);
 });
 
+check('palette', async ({ page }) => {
+  const shot = await page.screenshot();
+  const stats = await page.evaluate(async (b64) => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0);
+    // skip the greeting card — white text on purpose
+    const card = document.querySelector('#glass-card')?.getBoundingClientRect();
+    const d = g.getImageData(0, 0, cv.width, cv.height).data;
+    let white = 0, gold = 0, violet = 0, lit = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const px = (i / 4) % cv.width, py = Math.floor((i / 4) / cv.width);
+      if (card && px >= card.left - 8 && px <= card.right + 8 && py >= card.top - 8 && py <= card.bottom + 8) continue;
+      const r = d[i], gg = d[i + 1], bl = d[i + 2];
+      if (Math.max(r, gg, bl) < 60) continue;
+      lit++;
+      if (Math.min(r, gg, bl) > 190) white++;
+      else if (r > 110 && gg > 70 && bl < 90 && r - bl > 55) gold++;
+      else if (bl > r && bl - gg > 20) violet++;
+    }
+    return {
+      whitePct: +(100 * white / Math.max(lit, 1)).toFixed(1),
+      goldPct: +(100 * gold / Math.max(lit, 1)).toFixed(1),
+      violetPct: +(100 * violet / Math.max(lit, 1)).toFixed(1),
+    };
+  }, shot.toString('base64'));
+
+  // the planet spins, so the gold share moves in and out of frame — the
+  // regression we guard against is "no gold at all" and "everything blown to white"
+  assert(stats.goldPct > 3, `no real gold in the scene (${stats.goldPct}% gold pixels)`);
+  assert(stats.violetPct > 5, `no real violet in the scene (${stats.violetPct}% violet pixels)`);
+  assert(stats.whitePct < 6, `too much blown-out white in the scene (${stats.whitePct}% of lit pixels)`);
+  return stats;
+});
+
 check('console', async () => {
   const real = consoleErrors
     .filter((e) => !IGNORED_ERROR_PAGES.has(e.page))

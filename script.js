@@ -99,7 +99,7 @@ const canvas = document.getElementById('bg-heart');
 const fallback = document.getElementById('heart-fallback');
 const isSmall = () => window.innerWidth < 640;
 // the glass filter re-samples the backdrop every frame, so the pixel budget matters
-const PIXEL_RATIO = () => Math.min(devicePixelRatio, isSmall() ? 1.25 : 1.5);
+const PIXEL_RATIO = () => Math.min(devicePixelRatio, isSmall() ? 1 : 1.25);
 
 async function startHeart() {
   if (!canvas) return;
@@ -221,7 +221,7 @@ async function startHeart() {
   geometry.setAttribute('shift', new THREE.Float32BufferAttribute(shift, 4));
 
   const material = new THREE.PointsMaterial({
-    size: 0.1,
+    size: 0.08,
     transparent: true,
     blending: THREE.AdditiveBlending,
     onBeforeCompile: (shader) => {
@@ -241,10 +241,14 @@ async function startHeart() {
           // A rotationally symmetric cloud is invisible while it spins, so the
           // colour carries an asymmetric sweep along the object's X axis: the
           // planet spin is readable even though the shape is symmetric.
+          // Palette rule: one channel is zero on purpose. Additive blending sums
+          // the channels, so a colour with a zero channel can never blow out to
+          // white — the heart stays gold, the belt stays violet.
           float radial = clamp(length(abs(position) / vec3(20., 12., 40.)), 0.0, 1.0);
           float alongX = clamp(position.x / 9.0 * 0.5 + 0.5, 0.0, 1.0);
-          float grad = clamp(radial * 0.4 + alongX * 0.6, 0.0, 1.0);
-          vColor = mix(vec3(255., 196., 96.), vec3(146., 92., 255.), grad) / 255.;
+          float grad = clamp(radial * 0.35 + alongX * 0.65, 0.0, 1.0);
+          float split = smoothstep(0.42, 0.58, grad);
+          vColor = mix(vec3(1.0, 0.72, 0.0), vec3(0.14, 0.05, 1.0), split);
         `,
       ).replace(
         '#include <begin_vertex>',
@@ -264,7 +268,7 @@ async function startHeart() {
         'vec4 diffuseColor = vec4( diffuse, opacity );',
         `float pd = length(gl_PointCoord.xy - 0.5);
          if (pd > 0.5) discard;
-         vec4 diffuseColor = vec4( vColor, smoothstep(0.5, 0.2, pd) * 0.26 + 0.18 );`,
+         vec4 diffuseColor = vec4( vColor, smoothstep(0.5, 0.2, pd) * 0.2 + 0.1 );`,
       );
     },
   });
@@ -294,11 +298,10 @@ async function startHeart() {
   const render = (dt = 0.016) => {
     elapsed += dt;
     const t = elapsed * 0.5;
-    // 8/3 pacing: the cloud wobbles on its own and the whole body turns like a
-    // planet. The particle clock runs 2x the original so the dance is readable,
-    // the body keeps the original's slow spin.
-    uniforms.time.value = t * Math.PI * 2;
-    system.rotation.y = t * 0.05;
+    // 8/3 pacing, but fast enough to read: the cloud dances and the whole body
+    // turns like a planet (a 4-minute revolution is invisible to the eye)
+    uniforms.time.value = t * Math.PI * 8;
+    system.rotation.y = t * 0.22;
     system.rotation.x = 0;
     renderer.render(scene, camera);
     window.__thg.frames = (window.__thg.frames ?? 0) + 1;

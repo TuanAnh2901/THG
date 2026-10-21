@@ -138,7 +138,9 @@ Cảnh là **một hệ 3D**: trái tim hạt ở giữa, quanh nó là **vành 
 | Xoay cả khối | `rotation.y = t*0.05` | `rotation.y = t*0.05` | giữ tốc độ gốc |
 | Nhịp hạt | `time = t*PI` | `time = t*PI*2` | ×2 để vũ trụ nhảy thấy được |
 | Màu | vàng→tím theo bán kính | vàng→tím theo bán kính **+ quét bất đối xứng theo X** | tim đối xứng trục Y nên xoay không thấy; quét màu làm cái xoay đọc được |
-| DPR | không set (= 1) | cap 1.5 (mobile 1.25) | |
+| DPR | không set (= 1) | cap 1.25 (mobile 1) | |
+
+**Palette (đo trên ảnh thật, không mắt thường):** additive blending **cộng dồn các kênh màu** → một màu có cả 3 kênh sẽ cháy thành trắng khi chồng nhiều lớp. Quy tắc: **mỗi màu có một kênh = 0** → vàng `(1.0, 0.72, 0.0)`, tím `(0.14, 0.05, 1.0)`; ranh giới vàng/tím dùng `smoothstep` sắc (không dải trộn trung gian). Nền CSS cũng phải tối (radial gradient `.34 → .16`) vì hạt cộng thêm lên nền sáng sẽ loãng màu. Đo trước/sau: màu sáng trong tim trước là `(136,108,114)` xám hồng, sau là `(162,138,19)` vàng thật; **pixel trắng trong cảnh: 7.6% → 0.1%**.
 
 **Chuyển động phải thấy được** (đã sửa sau phản hồi: mọi chuyển động trước đó đều là *no-op* về mặt thị giác):
 

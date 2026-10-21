@@ -38,9 +38,9 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background:
-    radial-gradient(120% 80% at 12% 8%, rgba(139, 92, 246, .34), transparent 60%),
-    radial-gradient(100% 70% at 88% 12%, rgba(255, 122, 182, .26), transparent 62%),
-    radial-gradient(90% 90% at 50% 110%, rgba(255, 122, 182, .12), transparent 60%),
+    radial-gradient(120% 80% at 12% 8%, rgba(139, 92, 246, .16), transparent 60%),
+    radial-gradient(100% 70% at 88% 12%, rgba(255, 122, 182, .12), transparent 62%),
+    radial-gradient(90% 90% at 50% 110%, rgba(255, 122, 182, .07), transparent 60%),
     linear-gradient(180deg, var(--bg-0), var(--bg-1));
   background-attachment: fixed;
 }
