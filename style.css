@@ -97,11 +97,11 @@ body{
 }
 .glass > *{ position:relative; z-index:2; }
 
-/* the original used the default 1.5em for a two-line message; the longer
-   20/10 note needs a smaller size so the panel stays out of the scene */
+/* the original used the default 1.5em; a hair smaller so the panel stays clear
+   of the scene on shorter messages too */
 .glass h2{
-  font-size:1.15rem;
-  line-height:1.5;
+  font-size:1.35rem;
+  line-height:1.45;
   margin:0 0 .9em;
   font-weight:700;
 }
@@ -166,6 +166,6 @@ body{
     height:54px;
   }
   .glass h2{
-    font-size:1.02rem;
+    font-size:1.15rem;
   }
 }
