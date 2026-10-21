@@ -202,8 +202,8 @@ renderer.setAnimationLoop(() => {
 
 var i = 0;
 //var txt1 = "Sagi yêu dấu...! <Nhưng không hề đầu gấu, <<Sagi babi...!  <Nhưng không hề chi li.  <<Sagi thân mến...! <Nhưng không thích chơi nến.     <<Sagi slay...     <Chắc là có straight =))))) <<Sagi Sagi...!   <Cái tên thật mê li, mê li....";
-var txt1 = "Chúc cô gái có 1 ngày 20/10 vui vẻ, xinh đẹp, hạnh phúc nhé  <❤️❤️❤️ <Luv you!";
-var speed = 35;
+var txt1 = "Chúc cô gái có một ngày 20/10 thật vui vẻ, thật xinh đẹp và thật hạnh phúc nha. Mong mọi thứ hôm nay đều dịu dàng với bạn, làm việc thì thuận, gặp người thì vui, ăn gì cũng thấy ngon. Chuyện chưa ổn thì cứ để mai tính, hôm nay thì cứ vui đi, cười nhiều vào nha. <❤️❤️❤️ <Luv you!";
+var speed = 25;
 typeWriter();
 function typeWriter() {
   bgMusic.play().catch(() => {});

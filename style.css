@@ -97,6 +97,15 @@ body{
 }
 .glass > *{ position:relative; z-index:2; }
 
+/* the original used the default 1.5em for a two-line message; the longer
+   20/10 note needs a smaller size so the panel stays out of the scene */
+.glass h2{
+  font-size:1.15rem;
+  line-height:1.5;
+  margin:0 0 .9em;
+  font-weight:700;
+}
+
 /* shimmer sweep on click */
 @property --lg-angle{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
 @property --lg-shimmer{ syntax:"<number>"; initial-value:0; inherits:false; }
@@ -155,5 +164,8 @@ body{
   .music-toggle{
     width:54px;
     height:54px;
+  }
+  .glass h2{
+    font-size:1.02rem;
   }
 }
